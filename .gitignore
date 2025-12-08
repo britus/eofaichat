@@ -33,7 +33,7 @@ Makefile*
 *.prl
 
 /build
-/backup
+/backups
 /private
 
 # Qt unit tests
