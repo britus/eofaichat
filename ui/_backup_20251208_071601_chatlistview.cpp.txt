@@ -1,0 +1,97 @@
+#include "chatlistview.h"
+#include <QPainter>
+#include <QStyleOptionViewItem>
+#include <QApplication>
+#include <QDebug>
+
+ChatListView::ChatListView(QWidget *parent)
+    : QListView(parent)
+{
+    setMouseTracking(true); // Enable mouse tracking for hover events
+    m_hoveredRow = -1;
+}
+
+void ChatListView::mouseMoveEvent(QMouseEvent *event)
+{
+    QListView::mouseMoveEvent(event);
+    
+    // Determine which item the mouse is currently over
+    const QModelIndex index = indexAt(event->pos());
+    int newRow = index.isValid() ? index.row() : -1;
+    
+    if (newRow != m_hoveredRow) {
+        m_hoveredRow = newRow;
+        update(); // Trigger repaint to show/hide delete button
+    }
+}
+
+void ChatListView::mousePressEvent(QMouseEvent *event)
+{
+    QListView::mousePressEvent(event);
+    
+    // Check if delete button was clicked
+    const QModelIndex index = indexAt(event->pos());
+    if (index.isValid()) {
+        // Calculate button position based on item rect
+        QRect itemRect = visualRect(index);
+        QRect deleteButtonRect = itemRect;
+        deleteButtonRect.setLeft(deleteButtonRect.right() - 30);
+        deleteButtonRect.setWidth(25);
+        deleteButtonRect.setTop(deleteButtonRect.top() + 5);
+        deleteButtonRect.setHeight(20);
+        
+        if (deleteButtonRect.contains(event->pos())) {
+            // Emit signal for delete
+            emit customDeleteRequested(index.row());
+            return;
+        }
+    }
+}
+
+void ChatListView::leaveEvent(QEvent *event)
+{
+    QListView::leaveEvent(event);
+    if (m_hoveredRow != -1) {
+        m_hoveredRow = -1;
+        update();
+    }
+}
+
+void ChatListView::enterEvent(QEvent *event)
+{
+    QListView::enterEvent(event);
+    if (m_hoveredRow != -1) {
+        m_hoveredRow = -1;
+        update();
+    }
+}
+
+void ChatListView::paintEvent(QPaintEvent *event)
+{
+    QListView::paintEvent(event);
+    
+    // Paint delete button for currently hovered item
+    if (m_hoveredRow >= 0) {
+        const QModelIndex index = model()->index(m_hoveredRow, 0);
+        if (index.isValid()) {
+            QRect itemRect = visualRect(index);
+            QRect deleteButtonRect = itemRect;
+            deleteButtonRect.setLeft(deleteButtonRect.right() - 30);
+            deleteButtonRect.setWidth(25);
+            deleteButtonRect.setTop(deleteButtonRect.top() + 5);
+            deleteButtonRect.setHeight(20);
+            
+            QPainter painter(viewport());
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setBrush(Qt::red);
+            painter.drawRect(deleteButtonRect);
+            
+            // Draw X symbol
+            painter.setPen(Qt::white);
+            painter.drawLine(deleteButtonRect.left() + 4, deleteButtonRect.top() + 6, 
+                           deleteButtonRect.right() - 4, deleteButtonRect.bottom() - 6);
+            painter.drawLine(deleteButtonRect.left() + 4, deleteButtonRect.bottom() - 6, 
+                           deleteButtonRect.right() - 4, deleteButtonRect.top() + 6);
+        }
+    }
+}

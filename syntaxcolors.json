@@ -1,0 +1,381 @@
+{
+  "cpp": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "variable": "#9CDCFE",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "c": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "java": {
+    "keyword": "#CC7832",
+    "comment": "#808080",
+    "string": "#6A8759",
+    "number": "#6897BB",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "javascript": {
+    "keyword": "#C586C0",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "variable": "#9CDCFE",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "typescript": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "variable": "#9CDCFE",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "js": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "variable": "#9CDCFE",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "ts": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "variable": "#9CDCFE",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "sql": {
+    "keyword": "#FFD700",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "bash": {
+    "keyword": "#C586C0",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "variable": "#9CDCFE",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "python": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "variable": "#9CDCFE",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "go": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "rust": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "php": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "ruby": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "html": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "css": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "json": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "yaml": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "xml": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "perl": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "scala": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "swift": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "kotlin": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "r": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "matlab": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "lua": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "haskell": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "erlang": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "clojure": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "groovy": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "dart": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "fsharp": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "ocaml": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "pascal": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "fortran": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "cobol": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "assembly": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "lisp": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "scheme": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "tcl": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "racket": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "powershell": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "shell": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "makefile": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  },
+  "dockerfile": {
+    "keyword": "#569CD6",
+    "comment": "#6A9955",
+    "string": "#CE9178",
+    "operator": "#FF6464",
+    "preprocessor": "#FF6464",
+    "bracket": "#C864C8"
+  }
+}

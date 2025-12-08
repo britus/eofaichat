@@ -1,0 +1,118 @@
+#include <chatpanelwidget.h>
+#include <leftpanelwidget.h>
+#include <QApplication>
+#include <QInputDialog>
+#include <QLabel>
+#include <QMouseEvent>
+#include <QScrollBar>
+#include <QStyle>
+
+ChatListModel::ChatListModel(QObject *parent)
+    : QAbstractItemModel(parent)
+{}
+
+QModelIndex ChatListModel::index(int row, int column, const QModelIndex &parent) const
+{
+    if (parent.isValid() || row < 0 || row >= m_chats.size() || column != 0)
+        return QModelIndex();
+    return createIndex(row, column);
+}
+
+QModelIndex ChatListModel::parent(const QModelIndex & /*child*/) const
+{
+    return QModelIndex();
+}
+
+int ChatListModel::rowCount(const QModelIndex &parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return m_chats.size();
+}
+
+int ChatListModel::columnCount(const QModelIndex &parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return 1;
+}
+
+QVariant ChatListModel::data(const QModelIndex &index, int role) const
+{
+    if (!index.isValid() || index.row() >= m_chats.size())
+        return QVariant();
+
+    const ChatData &chat = m_chats[index.row()];
+
+    if (role == Qt::DisplayRole)
+        return chat.name;
+    else if (role == Qt::UserRole)
+        return QVariant::fromValue(chat.widget);
+
+    return QVariant();
+}
+
+bool ChatListModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
+    if (!index.isValid() || index.row() >= m_chats.size())
+        return false;
+
+    if (role == Qt::EditRole) {
+        m_chats[index.row()].name = value.toString();
+        emit dataChanged(index, index, {Qt::DisplayRole});
+        return true;
+    }
+
+    return false;
+}
+
+Qt::ItemFlags ChatListModel::flags(const QModelIndex &index) const
+{
+    if (!index.isValid())
+        return Qt::NoItemFlags;
+
+    return QAbstractItemModel::flags(index) | Qt::ItemIsEditable;
+}
+
+void ChatListModel::addChat(const QString &name)
+{
+    LeftPanelWidget *lpw;
+    if ((lpw = qobject_cast<LeftPanelWidget *>(QObject::parent()))) {
+        beginInsertRows(QModelIndex(), m_chats.size(), m_chats.size());
+        ChatPanelWidget *newWidget = new ChatPanelWidget(lpw);
+        m_chats.append(ChatData(name, newWidget));
+        endInsertRows();
+    }
+}
+
+void ChatListModel::removeChat(int row)
+{
+    if (row < 0 || row >= m_chats.size())
+        return;
+
+    beginRemoveRows(QModelIndex(), row, row);
+    emit chatRemoved(m_chats[row].widget);
+    m_chats.removeAt(row);
+    endRemoveRows();
+}
+
+void ChatListModel::renameChat(int row, const QString &newName)
+{
+    if (row < 0 || row >= m_chats.size())
+        return;
+
+    m_chats[row].name = newName;
+    emit dataChanged(index(row, 0), index(row, 0), {Qt::DisplayRole});
+}
+
+ChatListModel::ChatData *ChatListModel::getChatData(int row) const
+{
+    if (row < 0 || row >= m_chats.size())
+        return nullptr;
+    return const_cast<ChatData *>(&m_chats[row]);
+}
+
+int ChatListModel::chatCount() const
+{
+    return m_chats.size();
+}
