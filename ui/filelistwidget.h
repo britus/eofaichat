@@ -1,35 +1,12 @@
 #pragma once
-#include <QWidget>
-#include <QGridLayout>
-#include <QLabel>
-#include <QToolButton>
-#include <QHBoxLayout>
-#include <QList>
+#include <QListView>
+#include <QStandardItemModel>
 #include <QString>
+#include <QList>
 
-class FileNameLabel : public QWidget
-{
-    Q_OBJECT
+class FileNameLabel;
 
-public:
-    explicit FileNameLabel(const QString &fileName, QWidget *parent = nullptr);
-
-    QString fileName() const;
-    void setFileName(const QString &fileName);
-
-signals:
-    void removeRequested(int index);
-
-private slots:
-    void onRemoveClicked();
-
-private:
-    QLabel *m_label;
-    QToolButton *m_removeButton;
-    int m_index;
-};
-
-class FileListWidget : public QWidget
+class FileListWidget : public QListView
 {
     Q_OBJECT
 
@@ -47,6 +24,6 @@ signals:
     void fileRemoved(int index);
 
 private:
-    QGridLayout *m_layout;
-    QList<FileNameLabel*> m_fileLabels;
+    QStandardItemModel *m_model;
+    QList<FileNameLabel *> m_fileLabels;
 };

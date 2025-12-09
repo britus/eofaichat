@@ -1,9 +1,10 @@
-#include <filenameLabel.h>
+#include <filenamelabel.h>
 #include <QIcon>
 #include <QStyle>
 
 FileNameLabel::FileNameLabel(const QString &fileName, QWidget *parent)
     : QWidget(parent)
+    , m_index(0)
 {
     m_label = new QLabel(fileName, this);
     m_removeButton = new QToolButton(this);
@@ -32,6 +33,11 @@ QString FileNameLabel::fileName() const
 void FileNameLabel::setFileName(const QString &fileName)
 {
     m_label->setText(fileName);
+}
+
+void FileNameLabel::setIndex(int index)
+{
+    m_index = index;
 }
 
 void FileNameLabel::onRemoveClicked()

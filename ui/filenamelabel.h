@@ -1,8 +1,8 @@
 #pragma once
-#include <QWidget>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QToolButton>
-#include <QHBoxLayout>
+#include <QWidget>
 
 class FileNameLabel : public QWidget
 {
@@ -13,6 +13,7 @@ public:
 
     QString fileName() const;
     void setFileName(const QString &fileName);
+    void setIndex(int index);
 
 signals:
     void removeRequested(int index);

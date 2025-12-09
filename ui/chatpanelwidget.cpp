@@ -1,7 +1,8 @@
-#include "attachbutton.h"
+#include <attachbutton.h>
 #include <chatpanelwidget.h>
 #include <chattextwidget.h>
 #include <filelistmodel.h>
+#include <filelistwidget.h>
 #include <filenamelabel.h>
 #include <mainwindow.h>
 #include <progresspopup.h>
@@ -15,22 +16,22 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QScrollArea>
 #include <QScrollBar>
 #include <QStandardPaths>
+#include <QStyle>
 #include <QTextEdit>
 #include <QTimer>
 #include <QUrl>
 #include <QUuid>
 #include <QVBoxLayout>
-#include <QScrollArea>
-#include <QGridLayout>
-#include <QLabel>
-#include <QStyle>
 
 ChatPanelWidget::ChatPanelWidget(QWidget *parent)
     : QWidget(parent)
@@ -93,18 +94,7 @@ ChatPanelWidget::ChatPanelWidget(QWidget *parent)
     messagesLayout->addWidget(chatWidget);
 
     // ----------------- File list widget (initially hidden) -----------------
-    fileListWidget = new QWidget(this);
-    fileListWidget->setStyleSheet(R"(
-        QWidget {
-            background-color: #3a3a3a;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 8px;
-        }
-    )");
-    fileListLayout = new QGridLayout(fileListWidget);
-    fileListLayout->setContentsMargins(0, 0, 0, 0);
-    fileListLayout->setSpacing(4);
+    fileListWidget = new FileListWidget(this);
     mainLayout->addWidget(fileListWidget);
 
     // Initially hide the file list widget
@@ -538,16 +528,8 @@ void ChatPanelWidget::onAttachButtonFileDropped(const QList<QUrl> &urls)
 // ---------------- File List Model Events ----------------
 void ChatPanelWidget::onFileAdded(const QString &filePath)
 {
-    // Create a new FileNameLabel for the file
-    QFileInfo fileInfo(filePath);
-    QString fileName = fileInfo.fileName();
-
-    FileNameLabel *label = new FileNameLabel(fileName, fileListWidget);
-    connect(label, &FileNameLabel::removeRequested, this, &ChatPanelWidget::onFileNameLabelRemoveClicked);
-
-    // Add to layout - using a simple approach that will naturally wrap
-    // The grid layout will automatically handle wrapping when items exceed the row width
-    fileListLayout->addWidget(label);
+    // Add to our new FileListWidget
+    fileListWidget->addFile(filePath);
 
     // Update visibility
     updateFileListWidgetVisibility();
@@ -555,12 +537,8 @@ void ChatPanelWidget::onFileAdded(const QString &filePath)
 
 void ChatPanelWidget::onFileRemoved(int index)
 {
-    // Find the widget at the index and remove it
-    QWidget *widget = fileListLayout->itemAt(index)->widget();
-    if (widget) {
-        fileListLayout->removeWidget(widget);
-        widget->deleteLater();
-    }
+    // Remove from our new FileListWidget
+    fileListWidget->removeFile(index);
 
     // Update visibility
     updateFileListWidgetVisibility();

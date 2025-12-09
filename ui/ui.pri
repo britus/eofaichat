@@ -8,6 +8,7 @@ HEADERS += \
     $$PWD/chatpanelwidget.h \
     $$PWD/chattextwidget.h \
     $$PWD/codehighlighter.h \
+    $$PWD/filelistwidget.h \
     $$PWD/filenamelabel.h \
     $$PWD/leftpanelwidget.h \
     $$PWD/mainwindow.h \
@@ -20,6 +21,7 @@ SOURCES += \
     $$PWD/chatpanelwidget.cpp \
     $$PWD/chattextwidget.cpp \
     $$PWD/codehighlighter.cpp \
+    $$PWD/filelistwidget.cpp \
     $$PWD/filenamelabel.cpp \
     $$PWD/leftpanelwidget.cpp \
     $$PWD/mainwindow.cpp \

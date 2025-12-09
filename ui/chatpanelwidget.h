@@ -3,6 +3,7 @@
 #include <chatmodel.h>
 #include <chattextwidget.h>
 #include <filelistmodel.h>
+#include <filelistwidget.h>
 #include <filenamelabel.h>
 #include <llmchatclient.h>
 #include <modellistmodel.h>
@@ -11,6 +12,7 @@
 #include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QGridLayout>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
@@ -22,10 +24,6 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <QGridLayout>
-
-// Forward declaration of FileListWidget
-class FileListWidget;
 
 class ChatPanelWidget : public QWidget
 {
