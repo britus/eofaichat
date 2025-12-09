@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QNetworkReply>
 #include <QRegularExpression>
+#include <QStandardPaths>
 #include <QUrlQuery>
 
 LLMChatClient::LLMChatClient(QObject *parent)
@@ -132,6 +133,37 @@ void LLMChatClient::sendRequest(const QJsonObject &requestBody, const QString &e
     });
 }
 
+QJsonArray LLMChatClient::loadToolsConfig() const
+{
+    // Use QStandardPaths to get the application configuration directory
+    //QString configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+    QString configPath = "/Users/eofmc/EoF/eofmcp/cfg";
+    QString cfgPath = configPath.isEmpty() ? QString() : configPath + "/Tools";
+
+    // If the path is not valid, return an empty array
+    if (cfgPath.isEmpty() || !QDir(cfgPath).exists()) {
+        return QJsonArray();
+    }
+
+    QDir cfgDir(cfgPath);
+    QJsonArray tools;
+
+    // Iterate through all JSON files in the directory
+    for (const QString &fileName : cfgDir.entryList(QStringList() << "*.json", QDir::Files)) {
+        QFile file(cfgDir.absoluteFilePath(fileName));
+        if (file.open(QIODevice::ReadOnly)) {
+            QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+            if (!doc.isNull() && doc.isObject()) {
+                QJsonObject fncItem;
+                fncItem["type"] = "function"; //?? resource, prompt ??
+                fncItem["function"] = doc.object();
+                tools.append(fncItem);
+            }
+        }
+    }
+    return tools;
+}
+
 QJsonObject LLMChatClient::buildChatCompletionRequest(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream)
 {
     qDebug().noquote() << "[LLMCC] buildChatCompletionRequest" //
@@ -158,6 +190,15 @@ QJsonObject LLMChatClient::buildChatCompletionRequest(const QString &model, cons
             request[key] = parameters.value(key);
         }
     }
+
+    // Tools -> hm, not work for normal text?
+    request["tools"] = loadToolsConfig();
+
+    // Resources?
+    //request["resources"] = QJsonArray();
+
+    // Prompt Templates?
+    //request["prompts"] = QJsonArray();
 
     // Streaming
     request["stream"] = stream;

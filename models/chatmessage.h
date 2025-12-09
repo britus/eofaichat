@@ -13,6 +13,23 @@ public:
     enum Role { AssistantRole = 0, UserRole = 1, SystemRole = 2, ChatRole = 3 };
     Q_ENUM(Role)
 
+    struct ToolEntry
+    {
+        QString m_toolType;
+        QString m_toolCallId;
+        QString m_functionName;
+        //"{\"project_directory\":\"/Users/eofmc/EoF/qtmcp\"}"
+        QString m_arguments;
+        const QString &toolType() const { return m_toolType; }
+        void setToolType(const QString &value) { m_toolType = value; }
+        const QString &toolCallId() const { return m_toolCallId; }
+        void setToolCallId(const QString &value) { m_toolCallId = value; }
+        const QString &functionName() const { return m_functionName; }
+        void setFunctionName(const QString &value) { m_functionName = value; }
+        const QString &arguments() const { return m_arguments; }
+        void setArguments(const QString &value) { m_arguments = value; }
+    };
+
     explicit ChatMessage(QObject *parent = nullptr);
     ChatMessage(const QJsonObject &json, QObject *parent = nullptr);
     ChatMessage(const ChatMessage &other); // Copy constructor
@@ -24,6 +41,12 @@ public:
     QString model() const;
     QString object() const;
     QString systemFingerprint() const;
+    // Additional fields for tool calls
+    QString finishReason() const;
+    int choiceIndex() const;
+    QJsonObject stats() const;
+    QJsonObject usage() const;
+    const QList<ToolEntry> &tools() const;
     QJsonObject toJson() const;
 
 public slots:
@@ -34,6 +57,11 @@ public slots:
     void setModel(const QString &model);
     void setObject(const QString &object);
     void setSystemFingerprint(const QString &systemFingerprint);
+    // Additional setters for tool calls
+    void setFinishReason(const QString &finishReason);
+    void setChoiceIndex(int choiceIndex);
+    void setStats(const QJsonObject &stats);
+    void setUsage(const QJsonObject &usage);
 
 signals:
     void contentChanged();
@@ -43,6 +71,16 @@ signals:
     void modelChanged();
     void objectChanged();
     void systemFingerprintChanged();
+    // Additional signals for tool calls
+    void finishReasonChanged();
+    void choiceIndexChanged();
+    void statsChanged();
+    void usageChanged();
+    void toolsChanged();
+
+private:
+    void parseMessageContent(const QJsonObject &json);
+    void parseOtherFields(const QJsonObject &json);
 
 private:
     Q_PROPERTY(QString content READ content WRITE setContent NOTIFY contentChanged FINAL)
@@ -52,6 +90,10 @@ private:
     Q_PROPERTY(QString model READ model WRITE setModel NOTIFY modelChanged FINAL)
     Q_PROPERTY(QString object READ object WRITE setObject NOTIFY objectChanged FINAL)
     Q_PROPERTY(QString systemFingerprint READ systemFingerprint WRITE setSystemFingerprint NOTIFY systemFingerprintChanged FINAL)
+    Q_PROPERTY(QString finishReason READ finishReason WRITE setFinishReason NOTIFY finishReasonChanged FINAL)
+    Q_PROPERTY(int choiceIndex READ choiceIndex WRITE setChoiceIndex NOTIFY choiceIndexChanged FINAL)
+    Q_PROPERTY(QJsonObject stats READ stats WRITE setStats NOTIFY statsChanged FINAL)
+    Q_PROPERTY(QJsonObject usage READ usage WRITE setUsage NOTIFY usageChanged FINAL)
 
     QString m_content;
     Role m_role;
@@ -60,7 +102,15 @@ private:
     QString m_model;
     QString m_object;
     QString m_systemFingerprint;
+    QString m_finishReason;
+    int m_choiceIndex;
+    QJsonObject m_stats;
+    QJsonObject m_usage;
+
+    // Additional fields for tool calls
+    QList<ToolEntry> m_tools;
 };
+Q_DECLARE_METATYPE(ChatMessage::ToolEntry)
 
 // Comparison operators
 bool operator==(const ChatMessage &lhs, const ChatMessage &rhs);

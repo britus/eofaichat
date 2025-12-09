@@ -7,6 +7,7 @@
 class ChatTextWidget : public QTextEdit
 {
     Q_OBJECT
+
 public:
     explicit ChatTextWidget(QWidget *parent = nullptr, SyntaxColorModel *model = nullptr);
     // Set/append a Markdown message. If isSender true -> sender layout will be applied.

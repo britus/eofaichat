@@ -63,6 +63,7 @@ private:
     void sendRequest(const QJsonObject &requestBody, const QString &endpoint, bool isGetMethod = false);
     QJsonObject buildChatCompletionRequest(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream);
     void parseStreamingResponse(QNetworkReply *reply);
+    QJsonArray loadToolsConfig() const;
 };
 
 #endif // LLMCHAT_CLIENT_H

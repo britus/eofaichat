@@ -12,7 +12,7 @@
 LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     : QWidget(parent)
 {
-    setFixedWidth(300);
+    setFixedWidth(200);
 
     auto layout = new QVBoxLayout(this);
     layout->setContentsMargins(10, 10, 10, 10);

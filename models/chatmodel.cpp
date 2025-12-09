@@ -109,10 +109,31 @@ void ChatModel::addMessageFromJson(const QJsonObject &json)
 {
     beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
     ChatMessage *newMessage = new ChatMessage(json);
+    if (newMessage->content().isEmpty()) {
+        if (isToolingResponse(newMessage)) {
+            // execute tool through MCP or SDIO inline
+            emit toolingRequest(newMessage);
+        }
+    }
     m_messages.append(newMessage);
     endInsertRows();
 
     emit messageAdded(newMessage);
+}
+
+bool ChatModel::isToolingResponse(ChatMessage *message)
+{
+    // chat message has first prio
+    if (!message->content().isEmpty()) {
+        return false;
+    }
+    // tooling may have "resource" and "prompt" too?
+    foreach (auto tool, message->tools()) {
+        if (tool.toolType().startsWith("funcion")) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void ChatModel::clear()

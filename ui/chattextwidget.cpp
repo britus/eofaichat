@@ -37,10 +37,11 @@ ChatTextWidget::ChatTextWidget(QWidget *parent, SyntaxColorModel *model)
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setWordWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
 
-    // Default styling
+    // Default styling // 1px solid #444
     setStyleSheet(R"(
         ChatTextWidget {
-            background: transparent;
+            background-color: transparent;
+            border: 0px;
             border-radius: 8px;
             padding: 6px;
         }
@@ -54,13 +55,20 @@ void ChatTextWidget::setSyntaxColorModel(SyntaxColorModel *model)
 
 void ChatTextWidget::setMessage(const QString &markdown, bool isSender)
 {
-    if (markdown.isEmpty())
+    if (markdown.isEmpty()) {
+        if (!isSender) { // stop progress
+            emit documentUpdated();
+        }
         return;
+    }
+
     appendMarkdown(markdown, isSender);
+
     // Emit signal when document is updated
     if (!isSender) {
         emit documentUpdated();
     }
+
 #if defined(QT_DEBUG)
     saveDocument(document());
 #endif
@@ -80,8 +88,8 @@ QString ChatTextWidget::tokensToHtml(const QVector<Token> &tokens, const QString
 
 void ChatTextWidget::appendMarkdown(const QString &markdown, bool isSender)
 {
-    QStringList lines = markdown.split('\n');
     bool inCode = false;
+    QStringList lines = markdown.split('\n');
     QString codeLang;
     QString codeBuffer;
     QString normalBuffer;

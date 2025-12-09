@@ -32,9 +32,13 @@ signals:
     void messageAdded(ChatMessage *message);
     void messageRemoved(int index);
     void messageChanged(int index, ChatMessage *message);
+    void toolingRequest(ChatMessage *message);
 
 private:
     QList<ChatMessage *> m_messages;
+
+private:
+    bool isToolingResponse(ChatMessage *message);
 };
 
 #endif // CHATMODEL_H

@@ -7,40 +7,45 @@ ChatMessage::ChatMessage(QObject *parent)
     : QObject(parent)
     , m_role(AssistantRole)
     , m_created(0)
+    , m_choiceIndex(0)
 {}
 
 ChatMessage::ChatMessage(const QJsonObject &json, QObject *parent)
     : QObject(parent)
 {
-    /* ======================================================
-    {
-        "choices": [
-            {
-                "finish_reason": "stop",
-                "index": 0,
-                "logprobs": null,
-                "message": {
-                    "content": "Hello! It's nice to meet you! How can I help you today?",
-                    "role": "assistant",
-                    "tool_calls": [
-                    ]
-                }
-            }
-        ],
-        "created": 1765081803,
-        "id": "chatcmpl-qovkqceldxfxc4gmwvel0p",
-        "model": "qwen/qwen3-coder-30b",
-        "object": "chat.completion",
-        "stats": {
-        },
-        "system_fingerprint": "qwen/qwen3-coder-30b",
-        "usage": {
-            "completion_tokens": 17,
-            "prompt_tokens": 10,
-            "total_tokens": 27
-        }
-    }
-    ====================================================== */
+    // Parse the JSON structure to extract message content and role
+    parseMessageContent(json);
+
+    // Parse other fields from the JSON structure
+    parseOtherFields(json);
+}
+
+// Copy constructor
+ChatMessage::ChatMessage(const ChatMessage &other)
+    : QObject(other.parent())
+    , m_content(other.content())
+    , m_role(other.role())
+    , m_created(other.created())
+    , m_id(other.id())
+    , m_model(other.model())
+    , m_object(other.object())
+    , m_systemFingerprint(other.systemFingerprint())
+    , m_finishReason(other.finishReason())
+    , m_choiceIndex(other.choiceIndex())
+    , m_stats(other.stats())
+    , m_usage(other.usage())
+{}
+
+void ChatMessage::parseMessageContent(const QJsonObject &json)
+{
+    // Initialize default values
+    m_finishReason = QString();
+    m_choiceIndex = 0;
+    m_stats = QJsonObject();
+    m_usage = QJsonObject();
+    m_content = QString();
+    m_role = AssistantRole;
+
     // Extract message content and role with error handling
     QJsonValue choicesValue = json["choices"];
     if (choicesValue.isArray()) {
@@ -49,6 +54,29 @@ ChatMessage::ChatMessage(const QJsonObject &json, QObject *parent)
             QJsonValue choice = choicesArray.first();
             if (choice.isObject()) {
                 QJsonObject choiceObj = choice.toObject();
+                // Extract finish_reason
+                QJsonValue finishReasonValue = choiceObj["finish_reason"];
+                if (finishReasonValue.isString()) {
+                    m_finishReason = finishReasonValue.toString();
+                }
+                // Extract index
+                QJsonValue indexValue = choiceObj["index"];
+                if (indexValue.isDouble()) {
+                    m_choiceIndex = static_cast<int>(indexValue.toDouble());
+                }
+
+                // Extract stats
+                QJsonValue statsValue = json["stats"];
+                if (statsValue.isObject()) {
+                    m_stats = statsValue.toObject();
+                }
+
+                // Extract usage
+                QJsonValue usageValue = json["usage"];
+                if (usageValue.isObject()) {
+                    m_usage = usageValue.toObject();
+                }
+
                 QJsonValue messageValue = choiceObj["message"];
                 if (messageValue.isObject()) {
                     QJsonObject messageObj = messageValue.toObject();
@@ -59,6 +87,46 @@ ChatMessage::ChatMessage(const QJsonObject &json, QObject *parent)
                         m_content = contentValue.toString();
                     } else {
                         m_content = QString(); // Empty string as default
+                    }
+
+                    // Extract tool_calls
+                    QJsonValue toolCallsValue = messageObj["tool_calls"];
+                    if (toolCallsValue.isArray() && !toolCallsValue.toArray().isEmpty()) {
+                        QJsonArray toolCallsArray = toolCallsValue.toArray();
+                        for (int i = 0; i < toolCallsArray.count(); i++) {
+                            if (!toolCallsArray[i].isObject()) {
+                                continue;
+                            }
+                            ToolEntry tool = {};
+                            QJsonObject toolObject = toolCallsArray[i].toObject();
+                            // Extract type
+                            QJsonValue typeValue = toolObject["type"];
+                            if (typeValue.isString()) {
+                                tool.setToolType(typeValue.toString());
+                            }
+                            // Extract id
+                            QJsonValue idValue = toolObject["id"];
+                            if (idValue.isString()) {
+                                tool.setToolCallId(idValue.toString());
+                            }
+                            // Extract function information
+                            QJsonValue functionValue = toolObject["function"];
+                            if (functionValue.isObject()) {
+                                QJsonObject functionObj = functionValue.toObject();
+                                // Extract name
+                                QJsonValue nameValue = functionObj["name"];
+                                if (nameValue.isString()) {
+                                    tool.setFunctionName(nameValue.toString());
+                                }
+                                // Extract arguments kv array
+                                QJsonValue argumentsValue = functionObj["arguments"];
+                                if (argumentsValue.isString()) {
+                                    tool.setArguments(argumentsValue.toString());
+                                }
+                            }
+                            m_tools.append(tool);
+                        }
+                        emit toolsChanged();
                     }
 
                     // Extract role with error handling
@@ -74,30 +142,15 @@ ChatMessage::ChatMessage(const QJsonObject &json, QObject *parent)
                         } else {
                             m_role = AssistantRole; // Default
                         }
-                    } else {
-                        m_role = AssistantRole; // Default if role is missing or not a string
                     }
-                } else {
-                    // Handle case where message is not an object
-                    m_content = QString();
-                    m_role = AssistantRole;
                 }
-            } else {
-                // Handle case where choice is not an object
-                m_content = QString();
-                m_role = AssistantRole;
             }
-        } else {
-            // Handle empty choices array
-            m_content = QString();
-            m_role = AssistantRole;
         }
-    } else {
-        // Handle case where choices is not an array
-        m_content = QString();
-        m_role = AssistantRole;
     }
+}
 
+void ChatMessage::parseOtherFields(const QJsonObject &json)
+{
     // Extract other fields with error handling
     QJsonValue createdValue = json["created"];
     if (createdValue.isDouble()) {
@@ -143,18 +196,6 @@ ChatMessage::ChatMessage(const QJsonObject &json, QObject *parent)
     }
 }
 
-// Copy constructor
-ChatMessage::ChatMessage(const ChatMessage &other)
-    : QObject(other.parent())
-    , m_content(other.content())
-    , m_role(other.role())
-    , m_created(other.created())
-    , m_id(other.id())
-    , m_model(other.model())
-    , m_object(other.object())
-    , m_systemFingerprint(other.systemFingerprint())
-{}
-
 QString ChatMessage::content() const
 {
     return m_content;
@@ -188,6 +229,26 @@ QString ChatMessage::object() const
 QString ChatMessage::systemFingerprint() const
 {
     return m_systemFingerprint;
+}
+
+QString ChatMessage::finishReason() const
+{
+    return m_finishReason;
+}
+
+int ChatMessage::choiceIndex() const
+{
+    return m_choiceIndex;
+}
+
+QJsonObject ChatMessage::stats() const
+{
+    return m_stats;
+}
+
+QJsonObject ChatMessage::usage() const
+{
+    return m_usage;
 }
 
 void ChatMessage::setContent(const QString &content)
@@ -246,6 +307,43 @@ void ChatMessage::setSystemFingerprint(const QString &systemFingerprint)
     }
 }
 
+void ChatMessage::setFinishReason(const QString &finishReason)
+{
+    if (m_finishReason != finishReason) {
+        m_finishReason = finishReason;
+        emit finishReasonChanged();
+    }
+}
+
+void ChatMessage::setChoiceIndex(int choiceIndex)
+{
+    if (m_choiceIndex != choiceIndex) {
+        m_choiceIndex = choiceIndex;
+        emit choiceIndexChanged();
+    }
+}
+
+void ChatMessage::setStats(const QJsonObject &stats)
+{
+    if (m_stats != stats) {
+        m_stats = stats;
+        emit statsChanged();
+    }
+}
+
+void ChatMessage::setUsage(const QJsonObject &usage)
+{
+    if (m_usage != usage) {
+        m_usage = usage;
+        emit usageChanged();
+    }
+}
+
+const QList<ChatMessage::ToolEntry> &ChatMessage::tools() const
+{
+    return m_tools;
+}
+
 QJsonObject ChatMessage::toJson() const
 {
     QJsonObject root;
@@ -259,8 +357,8 @@ QJsonObject ChatMessage::toJson() const
     messageObj["role"] = (m_role == AssistantRole) ? "assistant" : (m_role == UserRole) ? "user" : "system";
     messageObj["tool_calls"] = QJsonArray();
 
-    choiceObj["finish_reason"] = "stop";
-    choiceObj["index"] = 0;
+    choiceObj["finish_reason"] = m_finishReason;
+    choiceObj["index"] = m_choiceIndex;
     choiceObj["logprobs"] = QJsonValue::Null;
     choiceObj["message"] = messageObj;
 
@@ -274,13 +372,9 @@ QJsonObject ChatMessage::toJson() const
     root["object"] = m_object;
     root["system_fingerprint"] = m_systemFingerprint;
 
-    // Add empty stats and usage objects
-    root["stats"] = QJsonObject();
-    QJsonObject usageObj;
-    usageObj["completion_tokens"] = 0;
-    usageObj["prompt_tokens"] = 0;
-    usageObj["total_tokens"] = 0;
-    root["usage"] = usageObj;
+    // Add stats and usage objects
+    root["stats"] = m_stats;
+    root["usage"] = m_usage;
 
     return root;
 }
