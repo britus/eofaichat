@@ -1,29 +1,42 @@
 #pragma once
-#include <QListView>
-#include <QStandardItemModel>
-#include <QString>
+#include <filelistmodel.h>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QList>
-
-class FileNameLabel;
+#include <QListView>
+#include <QPixmap>
+#include <QString>
+#include <QContextMenuEvent>
+#include <QMenu>
 
 class FileListWidget : public QListView
 {
     Q_OBJECT
 
 public:
-    explicit FileListWidget(QWidget *parent = nullptr);
-
-    void addFile(const QString &filePath);
-    void removeFile(int index);
+    explicit FileListWidget(FileListModel *model, QWidget *parent = nullptr);
     int count() const;
 
 public slots:
     void clear();
 
+protected:
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
+
+private slots:
+    void onFileAdded(int index, FileItem *item);
+    void onFileRemoved(int index);
+    void deleteSelectedFile();
+
 signals:
     void fileRemoved(int index);
 
 private:
-    QStandardItemModel *m_model;
-    QList<FileNameLabel *> m_fileLabels;
+    FileListModel *m_model;
+    QMenu *m_contextMenu;
 };

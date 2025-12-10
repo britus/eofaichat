@@ -18,6 +18,9 @@ public:
     // Prüfe ob wir ein Modell für die Sprache haben
     bool hasLanguage(const QString &language) const;
 
+    // load syntax color descriptor
+    void loadSyntaxModel();
+
 private:
     // language -> token -> QColor
     QMap<QString, QMap<QString, QColor>> m_map;

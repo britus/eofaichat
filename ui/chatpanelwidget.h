@@ -9,6 +9,7 @@
 #include <modellistmodel.h>
 #include <progresspopup.h>
 #include <syntaxcolormodel.h>
+#include <toolmodel.h>
 #include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -36,37 +37,17 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
 
-private slots:
-    void onSendClicked();
-    void onAttachClicked();
-    void onToolsClicked();
-    void onResourcesClicked();
-    void onModelSelected(int index);
-    void onFileAdded(const QString &filePath);
-    void onFileRemoved(int index);
-    void onFileNameLabelRemoveClicked(int index);
-    void onAttachButtonFileDropped(const QList<QUrl> &urls);
-
 private:
     QVBoxLayout *messagesLayout;
     QWidget *messagesContainer;
     QWidget *chatWidgetContainer;
     QScrollArea *scrollArea;
-
     QTextEdit *messageInput;
-    QPushButton *sendButton;
-    AttachButton *attachButton;
-    QPushButton *toolsButton;
-
-    // Language model selection widget
-    QWidget *modelSelectionWidget;
-    QLabel *modelLabel;
-    QComboBox *modelComboBox;
 
     LLMChatClient *llmclient;
     ModelListModel *llmModels;
     ChatModel *chatModel;
-    //ChatTextWidget *chatWidget;
+
     // list messages with their own bubble widget
     ChatTextWidget *chatWidget;
 #if 0
@@ -87,10 +68,20 @@ private:
     FileListModel *fileListModel;
     FileListWidget *fileListWidget;
 
-    // Show/hide progress popup methods
-    void showProgressPopup();
-    void hideProgressPopup();
+    // LLM Tooling
+    ToolModel *toolModel;
 
-    // Helper method to update file list widget visibility
-    void updateFileListWidgetVisibility();
+private:
+    inline void createChatArea(QVBoxLayout *);
+    inline void createFileListWidget(QVBoxLayout *);
+    inline void createInputWidget(QVBoxLayout *);
+    inline void createLLMSelector(QVBoxLayout *);
+    inline void createAttachButton(QHBoxLayout *);
+    inline void createToolsButton(QHBoxLayout *);
+    inline void createSendButton(QHBoxLayout *);
+    inline void connectLLMClient();
+    inline void connectChatModel();
+    // Show/hide progress popup methods
+    inline void showProgressPopup();
+    inline void hideProgressPopup();
 };

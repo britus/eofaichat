@@ -8,7 +8,8 @@ HEADERS += \
     $$PWD/filelistmodel.h \
     $$PWD/modelentry.h \
     $$PWD/modellistmodel.h \
-    $$PWD/syntaxcolormodel.h
+    $$PWD/syntaxcolormodel.h \
+    $$PWD/toolmodel.h
 
 SOURCES += \
     $$PWD/chatlistmodel.cpp \
@@ -16,4 +17,5 @@ SOURCES += \
     $$PWD/chatmodel.cpp \
     $$PWD/filelistmodel.cpp \
     $$PWD/modellistmodel.cpp \
-    $$PWD/syntaxcolormodel.cpp
+    $$PWD/syntaxcolormodel.cpp \
+    $$PWD/toolmodel.cpp

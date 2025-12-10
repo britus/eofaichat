@@ -12,7 +12,8 @@ HEADERS += \
     $$PWD/filenamelabel.h \
     $$PWD/leftpanelwidget.h \
     $$PWD/mainwindow.h \
-    $$PWD/progresspopup.h
+    $$PWD/progresspopup.h \
+    $$PWD/toolswidget.h
 
 SOURCES += \
     $$PWD/attachbutton.cpp \
@@ -25,4 +26,5 @@ SOURCES += \
     $$PWD/filenamelabel.cpp \
     $$PWD/leftpanelwidget.cpp \
     $$PWD/mainwindow.cpp \
-    $$PWD/progresspopup.cpp
+    $$PWD/progresspopup.cpp \
+    $$PWD/toolswidget.cpp

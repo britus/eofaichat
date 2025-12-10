@@ -1,10 +1,13 @@
-#include "syntaxcolormodel.h"
+#include <syntaxcolormodel.h>
+#include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QStandardPaths>
 
 SyntaxColorModel::SyntaxColorModel(QObject *parent)
     : QObject(parent)
@@ -14,7 +17,7 @@ bool SyntaxColorModel::loadFromFile(const QString &filePath)
 {
     QFile f(filePath);
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning() << "SyntaxColorModel: cannot open file" << filePath;
+        qWarning() << "[SyntaxColorModel] cannot open file" << filePath;
         return false;
     }
     QByteArray data = f.readAll();
@@ -23,7 +26,7 @@ bool SyntaxColorModel::loadFromFile(const QString &filePath)
     QJsonParseError err;
     QJsonDocument doc = QJsonDocument::fromJson(data, &err);
     if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-        qWarning() << "SyntaxColorModel: json parse error" << err.errorString();
+        qWarning() << "[SyntaxColorModel] Json parse error" << err.errorString();
         return false;
     }
 
@@ -37,7 +40,7 @@ bool SyntaxColorModel::loadFromFile(const QString &filePath)
             QString colorStr = jt.value().toString();
             QColor col(colorStr);
             if (!col.isValid()) {
-                qWarning() << "SyntaxColorModel: invalid color" << colorStr << "for" << lang << token;
+                qWarning() << "[SyntaxColorModel] Invalid color" << colorStr << "for" << lang << token;
                 col = Qt::black;
             }
             tokenMap.insert(token, col);
@@ -61,4 +64,35 @@ QColor SyntaxColorModel::colorFor(const QString &language, const QString &token,
 bool SyntaxColorModel::hasLanguage(const QString &language) const
 {
     return m_map.contains(language.toLower());
+}
+
+// Try load color model from relative file; adjust path as needed.
+void SyntaxColorModel::loadSyntaxModel()
+{
+    // if using resources
+    QString colorFile = ":/syntaxcolors.json";
+    if (!QFile::exists(colorFile)) {
+        // fallback to local file in executable dir
+        QString configPath;
+        configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+        configPath = configPath + QDir::separator() + "Syntax";
+        QDir configDir(configPath);
+        if (!configDir.exists()) {
+            QFile::Permissions permissions;
+            permissions.setFlag(QFile::Permission::ReadOwner, true);
+            permissions.setFlag(QFile::Permission::ReadGroup, true);
+            permissions.setFlag(QFile::Permission::WriteOwner, true);
+            permissions.setFlag(QFile::Permission::WriteGroup, true);
+            permissions.setFlag(QFile::Permission::ExeOwner, true);
+            permissions.setFlag(QFile::Permission::ExeGroup, true);
+            if (!configDir.mkpath(configDir.absolutePath(), permissions)) {
+                qWarning("[SyntaxColorModel] Unable to create directory: %s", qPrintable(configDir.absolutePath()));
+                return;
+            }
+        }
+        colorFile = configDir.absoluteFilePath("syntaxcolors.json");
+    }
+    if (!loadFromFile(colorFile)) {
+        qWarning() << "[SyntaxColorModel] Failed to load syntax color model from" << colorFile;
+    }
 }

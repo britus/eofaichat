@@ -1,78 +1,78 @@
 #include "filelistmodel.h"
+#include <QDir>
 #include <QFileInfo>
 
 FileListModel::FileListModel(QObject *parent)
-    : QAbstractListModel(parent)
+    : QStandardItemModel(parent)
 {
+    //-
 }
 
-int FileListModel::rowCount(const QModelIndex &parent) const
+void FileListModel::addFile(const QString &filePath, const QIcon &icon)
 {
-    if (parent.isValid())
-        return 0;
-    return m_files.count();
-}
-
-QVariant FileListModel::data(const QModelIndex &index, int role) const
-{
-    if (!index.isValid() || index.row() >= m_files.count())
-        return QVariant();
-
-    if (role == Qt::DisplayRole) {
-        QFileInfo fileInfo(m_files[index.row()]);
-        return fileInfo.fileName();
-    }
-
-    return QVariant();
-}
-
-bool FileListModel::setData(const QModelIndex &index, const QVariant &value, int role)
-{
-    if (!index.isValid() || index.row() >= m_files.count())
-        return false;
-
-    if (role == Qt::EditRole) {
-        QString newFilePath = value.toString();
-        m_files[index.row()] = newFilePath;
-        emit edited(index.row(), newFilePath);
-        return true;
-    }
-
-    return false;
-}
-
-void FileListModel::addFile(const QString &filePath)
-{
-    beginInsertRows(QModelIndex(), m_files.count(), m_files.count());
-    m_files.append(filePath);
+    QFileInfo fileInfo(filePath);
+    QString fileName = fileInfo.fileName();
+    FileItem *item = new FileItem(fileInfo, icon, fileName);
+    int count = rowCount();
+    beginInsertRows(QModelIndex(), count, count);
+    QStandardItemModel::appendRow(item);
     endInsertRows();
-    
-    emit added(filePath);
+
+    emit added(count, item);
 }
 
 void FileListModel::removeFile(int index)
 {
-    if (index < 0 || index >= m_files.count())
+    if (index < 0 || index >= rowCount())
         return;
-        
+
     beginRemoveRows(QModelIndex(), index, index);
-    QString removedFilePath = m_files.takeAt(index);
+    QStandardItemModel::removeRows(index, 1);
     endRemoveRows();
-    
+
     emit removed(index);
 }
 
 QString FileListModel::filePath(int index) const
 {
-    if (index < 0 || index >= m_files.count())
+    if (index < 0 || index >= rowCount())
         return QString();
-    return m_files[index];
+    if (FileItem *_item = dynamic_cast<FileItem *>(item(index))) {
+        QFileInfo fileInfo(_item->fileInfo());
+        return fileInfo.absoluteFilePath();
+    }
+    return QString();
 }
 
 QString FileListModel::fileName(int index) const
 {
-    if (index < 0 || index >= m_files.count())
+    if (index < 0 || index >= rowCount())
         return QString();
-    QFileInfo fileInfo(m_files[index]);
-    return fileInfo.fileName();
+    if (FileItem *_item = dynamic_cast<FileItem *>(item(index))) {
+        QFileInfo fileInfo(_item->fileInfo());
+        return fileInfo.fileName();
+    }
+    return QString();
+}
+
+void FileListModel::loadContentOfFiles(QByteArray &content)
+{
+    for (int i = 0; i < rowCount(); i++) {
+        if (FileItem *_item = dynamic_cast<FileItem *>(item(i))) {
+            QFileInfo fileInfo(_item->fileInfo());
+            QFile file(fileInfo.absoluteFilePath());
+            if (file.open(QFile::ReadOnly)) {
+                content.append(file.readAll());
+                file.close();
+            }
+        }
+    }
+}
+
+void FileListModel::clear()
+{
+    beginResetModel();
+    QStandardItemModel::clear();
+    endResetModel();
+    emit removed(-1);
 }

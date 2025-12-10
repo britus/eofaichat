@@ -1,36 +1,55 @@
 #pragma once
 #include <QAbstractListModel>
-#include <QStringList>
+#include <QFileInfo>
 #include <QObject>
+#include <QStandardItemModel>
+#include <QStringList>
+#include <QStyle>
 
-class FileListModel : public QAbstractListModel
+class FileItem : public QStandardItem
+{
+public:
+    FileItem(const QFileInfo &info, const QIcon &icon, const QString &text)
+        : QStandardItem(icon, text)
+        , m_info(info) {};
+    explicit FileItem(const QString &text)
+        : QStandardItem(text) {};
+    FileItem(const QIcon &icon, const QString &text)
+        : QStandardItem(icon, text) {};
+    explicit FileItem(int rows, int columns = 1)
+        : QStandardItem(rows, columns) {};
+    inline void setFileInfo(const QFileInfo &info) { m_info = info; }
+    inline const QFileInfo &fileInfo() const { return m_info; }
+
+private:
+    QFileInfo m_info;
+};
+Q_DECLARE_METATYPE(FileItem)
+
+class FileListModel : public QStandardItemModel
 {
     Q_OBJECT
 
 public:
     explicit FileListModel(QObject *parent = nullptr);
 
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-    bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
-
     // Add file to the list
-    void addFile(const QString &filePath);
-    
+    void addFile(const QString &filePath, const QIcon &icon);
+
     // Remove file from the list
     void removeFile(int index);
-    
+
     // Get file path at index
     QString filePath(int index) const;
-    
+
     // Get file name (without path) at index
     QString fileName(int index) const;
 
-signals:
-    void added(const QString &filePath);
-    void edited(int index, const QString &filePath);
-    void removed(int index);
+    void loadContentOfFiles(QByteArray &content);
+    void clear();
 
-private:
-    QStringList m_files;
+signals:
+    void added(int index, FileItem *item);
+    void edited(int index, FileItem *item);
+    void removed(int index);
 };
