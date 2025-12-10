@@ -18,6 +18,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMainWindow>
 #include <QMenu>
 #include <QMimeData>
 #include <QPushButton>
@@ -60,6 +61,7 @@ private:
     ModelEntry selectedModelEntry;
 
     QString lastDirectory;
+    QMainWindow *toolsWindow;
 
     // Progress popup widget
     ProgressPopup *progressPopup;

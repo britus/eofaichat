@@ -1,4 +1,5 @@
 #include "toolswidget.h"
+#include <QApplication>
 #include <QCheckBox>
 #include <QDebug>
 #include <QHBoxLayout>
@@ -26,6 +27,7 @@ void ToolsWidget::setToolModel(ToolModel *model)
 
 void ToolsWidget::setupUI()
 {
+    m_toolBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(m_toolBox);
     setLayout(mainLayout);

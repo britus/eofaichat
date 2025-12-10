@@ -357,21 +357,23 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
         qDebug() << "Tools action triggered";
 
         // Create a new window for the tools
-        QMainWindow *toolsWindow = new QMainWindow(this->window());
-        toolsWindow->setWindowFlag(Qt::WindowType::Tool, true);
-        toolsWindow->setWindowTitle("Tools");
-        toolsWindow->resize(800, 600);
-
-        // Create the ToolsWidget
-        ToolsWidget *toolsWidget = new ToolsWidget(toolsWindow);
-
-        // Set up the tool model (this would typically be connected to a real model)
-        toolsWidget->setToolModel(toolModel);
-
-        // Set the ToolsWidget as the central widget of the window
-        toolsWindow->setCentralWidget(toolsWidget);
+        if (toolsWindow == nullptr) {
+            toolsWindow = new QMainWindow(this->window());
+            toolsWindow->setWindowFlag(Qt::WindowType::Tool, true);
+            toolsWindow->setWindowTitle("Tools");
+            // Set window properties
+            toolsWindow->setFixedSize(450, 320);
+            toolsWindow->resize(toolsWindow->size());
+            // Create the ToolsWidget
+            ToolsWidget *toolsWidget = new ToolsWidget(toolsWindow);
+            // Set up the tool model (this would typically be connected to a real model)
+            toolsWidget->setToolModel(toolModel);
+            // Set the ToolsWidget as the central widget of the window
+            toolsWindow->setCentralWidget(toolsWidget);
+        }
 
         // Show the window
+        toolsWindow->setWindowState(Qt::WindowState::WindowActive);
         toolsWindow->show();
     });
 

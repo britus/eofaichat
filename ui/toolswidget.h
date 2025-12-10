@@ -31,6 +31,7 @@ private:
     QWidget *createToolPage(ToolType type);
     QWidget *createToolBar(int index);
     QWidget *createToolItem(int index);
+    void centerWindow();
 
     QToolBox *m_toolBox;
     ToolModel *m_model;
