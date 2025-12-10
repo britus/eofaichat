@@ -33,7 +33,7 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     // Custom methods
-    void loadFromDirectory(const QString &directory, ToolType type);
+    void loadFromDirectory(const QFileInfo &fileInfo, ToolType type);
     QList<QJsonObject> toolObjects() const;
 
     void loadToolsConfig();

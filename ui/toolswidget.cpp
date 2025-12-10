@@ -55,6 +55,7 @@ QWidget *ToolsWidget::createToolPage(ToolType type)
 
     // Create container widget for the toolbar and tool items
     QWidget *containerWidget = new QWidget();
+    containerWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     QVBoxLayout *containerLayout = new QVBoxLayout(containerWidget);
 
     // Create toolbar for this page
@@ -75,7 +76,6 @@ QWidget *ToolsWidget::createToolPage(ToolType type)
 
     // Add stretch to push items up
     containerLayout->addStretch();
-
     layout->addWidget(containerWidget);
     scrollArea->setWidget(pageWidget);
     scrollArea->setWidgetResizable(true);
@@ -112,7 +112,7 @@ QWidget *ToolsWidget::createToolBar(int index)
 QWidget *ToolsWidget::createToolItem(int index)
 {
     QWidget *widget = new QWidget();
-    widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    widget->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 
     QHBoxLayout *layout = new QHBoxLayout(widget);
     layout->setContentsMargins(0, 0, 0, 0);

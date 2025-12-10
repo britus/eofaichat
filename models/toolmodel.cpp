@@ -48,48 +48,23 @@ QHash<int, QByteArray> ToolModel::roleNames() const
     return roles;
 }
 
-void ToolModel::loadFromDirectory(const QString &directory, ToolType type)
+void ToolModel::loadFromDirectory(const QFileInfo &fileInfo, ToolType type)
 {
-    QDir dir(directory);
-    if (!dir.exists()) {
-        qWarning() << "[TOOLMODEL] Directory does not exist:" << directory;
-        return;
-    }
+    QFile file(fileInfo.absoluteFilePath());
+    if (file.open(QIODevice::ReadOnly)) {
+        QFileInfo fi(file.fileName());
+        QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+        if (!doc.isNull() && doc.isObject()) {
+            QJsonObject jsonObject = doc.object();
+            ToolEntry entry;
+            entry.tool = jsonObject;
+            entry.name = fi.baseName();
+            entry.option = AskBeforeRun; // Default value
+            entry.type = type;
 
-    // Find all JSON files in current directory
-    QStringList jsonFiles;
-    QFileInfoList fileInfoList = dir.entryInfoList( //
-        QStringList() << "*.json",
-        QDir::Files | QDir::NoDotAndDotDot,
-        QDir::Name);
-    foreach (const QFileInfo &fileInfo, fileInfoList) {
-        jsonFiles.append(fileInfo.absoluteFilePath());
-    }
-
-    // Process JSON files
-    for (const QString &filePath : jsonFiles) {
-        QFile file(filePath);
-        if (file.open(QIODevice::ReadOnly)) {
-            QFileInfo fi(file.fileName());
-            QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-            if (!doc.isNull() && doc.isObject()) {
-                QJsonObject jsonObject = doc.object();
-                ToolEntry entry;
-                entry.tool = jsonObject;
-                entry.name = fi.baseName();
-                entry.option = AskBeforeRun; // Default value
-                entry.type = type;
-
-                addToolEntry(entry);
-            }
-            file.close();
+            addToolEntry(entry);
         }
-    }
-
-    // Recursively process subdirectories
-    QFileInfoList subDirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
-    foreach (const QFileInfo &subDirInfo, subDirs) {
-        loadFromDirectory(subDirInfo.absoluteFilePath(), type);
+        file.close();
     }
 }
 
@@ -162,13 +137,13 @@ void ToolModel::loadToolsConfig()
         QFileInfoList files = configDir.entryInfoList(QStringList() << "*.json", filters);
         foreach (auto fi, files) {
             if (fi.isFile() && fi.isReadable()) {
-                loadFromDirectory(fi.absoluteFilePath(), Tool);
+                loadFromDirectory(fi, Tool);
             }
         }
     }
 
     { // Known resources
-        QString configPath = baseCfgPath + QDir::separator() + "Resource";
+        QString configPath = baseCfgPath + QDir::separator() + "Resources";
 
         // ensure directory exist
         QDir configDir(configPath);
@@ -181,7 +156,7 @@ void ToolModel::loadToolsConfig()
         QFileInfoList files = configDir.entryInfoList(QStringList() << "*.json", filters);
         foreach (auto fi, files) {
             if (fi.isFile() && fi.isReadable()) {
-                loadFromDirectory(fi.absoluteFilePath(), Resource);
+                loadFromDirectory(fi, Resource);
             }
         }
     }
@@ -200,7 +175,7 @@ void ToolModel::loadToolsConfig()
         QFileInfoList files = configDir.entryInfoList(QStringList() << "*.json", filters);
         foreach (auto fi, files) {
             if (fi.isFile() && fi.isReadable()) {
-                loadFromDirectory(fi.absoluteFilePath(), Prompt);
+                loadFromDirectory(fi, Prompt);
             }
         }
     }
