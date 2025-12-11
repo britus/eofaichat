@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>syntaxcolors.json</file>
+        <file>eofaichat.css</file>
     </qresource>
 </RCC>

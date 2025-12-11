@@ -57,6 +57,7 @@ SOURCES += \
     $$PWD/main.cpp
 
 DISTFILES += \
+    eofaichat.css \
     syntaxcolors.json
 
 RESOURCES += \

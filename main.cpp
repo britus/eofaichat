@@ -1,14 +1,40 @@
 #include <ui/mainwindow.h>
 #include <QApplication>
+#include <QFile>
 #include <QLocale>
+#include <QProxyStyle>
 #include <QStyleFactory>
 #include <QTranslator>
 
+class ApplicationStyle : public QProxyStyle
+{
+public:
+    int styleHint(StyleHint hint,
+                  const QStyleOption *option = nullptr, //
+                  const QWidget *widget = nullptr,      //
+                  QStyleHintReturn *returnData = nullptr) const override
+    {
+        switch (hint) {
+            case QStyle::SH_ComboBox_Popup: {
+                return 0;
+            }
+            case QStyle::SH_MessageBox_CenterButtons: {
+                return 0;
+            }
+            case QStyle::SH_FocusFrame_AboveWidget: {
+                return 1;
+            }
+            default: {
+                break;
+            }
+        }
+        return QProxyStyle::styleHint(hint, option, widget, returnData);
+    }
+};
+
 int main(int argc, char *argv[])
 {
-    QApplication::setStyle(QStyleFactory::create("Fusion"));
     QPalette darkPalette;
-
     darkPalette.setColor(QPalette::Window, QColor(53, 53, 53));
     darkPalette.setColor(QPalette::WindowText, Qt::white);
     darkPalette.setColor(QPalette::Base, QColor(42, 42, 42));
@@ -21,10 +47,27 @@ int main(int argc, char *argv[])
     darkPalette.setColor(QPalette::BrightText, Qt::red);
     darkPalette.setColor(QPalette::Link, QColor(42, 130, 218));
     darkPalette.setColor(QPalette::Highlight, QColor(42, 130, 218));
-    darkPalette.setColor(QPalette::HighlightedText, Qt::black);
+    darkPalette.setColor(QPalette::HighlightedText, Qt::white);
 
-    QApplication::setPalette(darkPalette);
+    /* configure custom GUI style hinter */
+    QStyle *style;
+    if (!(style = QStyleFactory::create("Fusion"))) {
+        return -1;
+    }
+    ApplicationStyle *appStyle = new ApplicationStyle();
+    appStyle->setBaseStyle(style);
+
+    QString css;
+    QFile r(":/eofaichat.css");
+    if (r.open(QFile::ReadOnly)) {
+        css = r.readAll();
+        r.close();
+    }
+
     QApplication a(argc, argv);
+    a.setPalette(darkPalette);
+    a.setStyleSheet(css);
+    a.setStyle(appStyle);
 
     QTranslator translator;
     const QStringList uiLanguages = QLocale::system().uiLanguages();

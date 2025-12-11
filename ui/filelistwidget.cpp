@@ -1,76 +1,22 @@
 #include <filelistwidget.h>
 #include <filenamelabel.h>
+#include <QAction>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QIcon>
+#include <QMessageBox>
 #include <QMimeData>
 #include <QResizeEvent>
 #include <QStyle>
 #include <QUrl>
-#include <QAction>
-#include <QFileDialog>
-#include <QMessageBox>
 
 FileListWidget::FileListWidget(FileListModel *model, QWidget *parent)
     : QListView(parent)
     , m_model(model)
 {
-    // Set up the widget with a stylesheet similar to the original
-    setStyleSheet(R"(
-    QListView {
-        font-family: monospace;
-        font-size: 16pt;
-        color: white;
-        background-color: #4e4e4e;
-        border: 1px solid #aaaaaa;
-        selection-background-color: #6f6f6f;
-        selection-color: white;
-        outline: none;
-        border: 1px solid #444;
-        border-radius: 8px;
-    }
-
-    QListView::item {
-        background-color: #4e4e4e;
-        color: #d3d3d3;
-        padding: 10px;
-        border: 1px solid #666;
-        border-radius: 8px;
-        margin: 4px;
-    }
-
-    QListView::item:selected {
-        background-color: #6f6f6f;
-        color: white;
-        border: 1px solid #888;
-        border-radius: 8px;
-    }
-
-    QScrollBar:vertical {
-        background: #3a3a3a;
-        width: 15px;
-    }
-
-    QScrollBar::handle:vertical {
-        background: #555;
-        border-radius: 7px;
-    }
-
-    QScrollBar::handle:vertical:hover {
-        background: #777;
-    }
-
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-        background: none;
-    }
-
-    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-        background: none;
-    }
-    )");
-
     // Create model
     setModel(m_model);
 
@@ -99,7 +45,7 @@ FileListWidget::FileListWidget(FileListModel *model, QWidget *parent)
     m_contextMenu = new QMenu(this);
     QAction *addFileAction = m_contextMenu->addAction("Add File");
     QAction *deleteFileAction = m_contextMenu->addAction("Delete File");
-    
+
     connect(addFileAction, &QAction::triggered, this, [this]() {
         QStringList files = QFileDialog::getOpenFileNames(this, "Select Files", QDir::homePath());
         for (const QString &file : files) {
@@ -110,7 +56,7 @@ FileListWidget::FileListWidget(FileListModel *model, QWidget *parent)
             }
         }
     });
-    
+
     connect(deleteFileAction, &QAction::triggered, this, &FileListWidget::deleteSelectedFile);
 }
 

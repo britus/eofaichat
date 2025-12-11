@@ -44,6 +44,9 @@ private slots:
     void onAddChat();
     void onContextMenu(const QPoint &point);
 
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+
 private:
     ChatListModel *chatModel;
     QListView *chatList; // Changed from QListWidget to QListView
@@ -51,16 +54,10 @@ private:
     QPushButton *updatesButton;
     QPushButton *downloadsButton;
     QPushButton *aboutButton;
-
     QWidget *trashConfirmWidget;
     QPushButton *trashYes;
     QPushButton *trashNo;
-
     QTimer *autoHideTimer;
     int pendingDeleteIndex = -1;
-
     QMenu *contextMenu;
-
-    void setupStyles();
-    void keyPressEvent(QKeyEvent *event) override;
 };

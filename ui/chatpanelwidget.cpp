@@ -45,13 +45,6 @@ ChatPanelWidget::ChatPanelWidget(QWidget *parent)
     , fileListModel(new FileListModel(parent))
     , toolModel(new ToolModel(parent))
 {
-    setStyleSheet(R"(
-        QWidget {
-            background-color: #2b2b2b;
-            color: #eeeeee;
-        }
-    )");
-
     // create extension to language mapping once
     ChatTextTokenizer::fileExtToLanguage("cpp");
     syntaxModel->loadSyntaxModel();
@@ -147,14 +140,9 @@ inline void ChatPanelWidget::createChatArea(QVBoxLayout *mainLayout)
     scrollArea = new QScrollArea(this);
     scrollArea->setWidgetResizable(true);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    scrollArea->setStyleSheet(R"(
-        background-color: #3a3a3a;
-        border: 1px solid #444;
-        border-radius: 8px;
-        margin:0;
-    )");
 
     messagesContainer = new QWidget(this);
+    messagesContainer->setObjectName("messagesContainer");
     messagesLayout = new QVBoxLayout(messagesContainer);
     messagesLayout->setAlignment(Qt::AlignTop);
 
@@ -163,18 +151,6 @@ inline void ChatPanelWidget::createChatArea(QVBoxLayout *mainLayout)
     mainLayout->addWidget(scrollArea, 1);
 
     // ----------------- chat text area -----------------
-#if 0
-    QVBoxLayout *chatWidgetContainerLayout = new QVBoxLayout(this);
-    chatWidgetContainerLayout->setContentsMargins(0, 0, 0, 0);
-    chatWidgetContainerLayout->setSpacing(12);
-    chatWidgetContainer = new QWidget(this);
-    chatWidgetContainer->setStyleSheet(R"(
-        background-color: #3a3a3a;
-        border: 0px;
-    )");
-    chatWidgetContainer->setLayout(chatWidgetContainerLayout);
-#endif
-
     chatWidget = new ChatTextWidget(messagesContainer, syntaxModel);
     messagesLayout->addWidget(chatWidget);
 
@@ -186,6 +162,7 @@ inline void ChatPanelWidget::createChatArea(QVBoxLayout *mainLayout)
 inline void ChatPanelWidget::createFileListWidget(QVBoxLayout *mainLayout)
 {
     fileListWidget = new FileListWidget(fileListModel, this);
+    fileListWidget->setObjectName("fileListWidget");
     fileListWidget->setModel(fileListModel);
     fileListWidget->setSizePolicy(QSizePolicy::Policy::MinimumExpanding, QSizePolicy::Policy::Minimum);
     fileListWidget->setMaximumHeight(180);
@@ -200,15 +177,6 @@ inline void ChatPanelWidget::createInputWidget(QVBoxLayout *mainLayout)
     messageInput->setFixedHeight(100); // adjustable height
     messageInput->setAcceptRichText(false);
     messageInput->setAutoFormatting(QTextEdit::AutoAll);
-    messageInput->setStyleSheet(R"(
-        QTextEdit {
-            font-family: monospace;
-            font-size: 16pt;
-            background-color: #3a3a3a;
-            border: 1px solid #444;
-            border-radius: 8px;
-        }
-    )");
     // Enable drag and drop for message input
     messageInput->setAcceptDrops(true);
     mainLayout->addWidget(messageInput);
@@ -222,21 +190,8 @@ inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
     QLabel *modelLabel;
 
     modelWidget = new QWidget(this);
-    modelWidget->setObjectName("msw");
-    modelWidget->setStyleSheet(R"(
-        QWidget#msw {
-            background-color: #3a3a3a;
-            color: #dddddd;
-            border: 1px solid #555;
-            border-radius: 8px;
-            padding: 8px;
-        }
-        QLabel {
-            background-color: #3a3a3a;
-            color: #dddddd;
-        }
-    )");
     modelWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+    modelWidget->setObjectName("modelWidget");
 
     QHBoxLayout *modelLayout = new QHBoxLayout(modelWidget);
     modelLayout->setContentsMargins(12, 12, 12, 12);
@@ -288,18 +243,6 @@ inline void ChatPanelWidget::createAttachButton(QHBoxLayout *buttonLayout)
     AttachButton *attachButton = new AttachButton("Attach", this);
     attachButton->setMinimumHeight(24);
     attachButton->setMinimumWidth(90);
-    attachButton->setStyleSheet(R"(
-        QPushButton {
-            background-color: #3a3a3a;
-            border: 1px solid #555;
-            border-radius: 8px;
-            padding: 8px;
-            font-size: 16px;
-        }
-        QPushButton:hover {
-            background-color: #444;
-        }
-    )");
     buttonLayout->addWidget(attachButton);
 
     connect(attachButton, &AttachButton::clicked, this, [this]() {
@@ -339,18 +282,6 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
     QPushButton *toolsButton = new QPushButton("Tools", this);
     toolsButton->setMinimumHeight(24);
     toolsButton->setMinimumWidth(90);
-    toolsButton->setStyleSheet(R"(
-        QPushButton {
-            background-color: #3a3a3a;
-            border: 1px solid #555;
-            border-radius: 8px;
-            padding: 8px;
-            font-size: 16px;
-        }
-        QPushButton:hover {
-            background-color: #444;
-        }
-    )");
     buttonLayout->addWidget(toolsButton);
 
     connect(toolsButton, &QPushButton::clicked, this, [this]() {
@@ -398,18 +329,6 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
     QPushButton *sendButton = new QPushButton("Send", this);
     sendButton->setMinimumHeight(24);
     sendButton->setMinimumWidth(90);
-    sendButton->setStyleSheet(R"(
-        QPushButton {
-            background-color: #3a3a3a;
-            border: 1px solid #555;
-            border-radius: 8px;
-            padding: 8px;
-            font-size: 16px;
-        }
-        QPushButton:hover {
-            background-color: #444;
-        }
-    )");
     buttonLayout->addWidget(sendButton);
 
     connect(sendButton, &QPushButton::clicked, this, [this]() {

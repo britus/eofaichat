@@ -31,21 +31,12 @@ ChatTextWidget::ChatTextWidget(QWidget *parent, SyntaxColorModel *model)
     : QTextEdit(parent)
     , m_colorModel(model)
 {
+    setObjectName("ChatTextWidget");
     setReadOnly(true);
     setAcceptRichText(false); // Changed to false since we'll use QTextDocument formatting
     setFrameStyle(QFrame::NoFrame);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setWordWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
-
-    // Default styling // 1px solid #444
-    setStyleSheet(R"(
-        ChatTextWidget {
-            background-color: transparent;
-            border: 0px;
-            border-radius: 8px;
-            padding: 6px;
-        }
-    )");
 }
 
 void ChatTextWidget::setSyntaxColorModel(SyntaxColorModel *model)

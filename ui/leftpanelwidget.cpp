@@ -25,13 +25,13 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     layout->addWidget(newChatButton);
 
     // ---------------- Chat List ----------------------------------
+    chatModel = new ChatListModel(this);
+    connect(chatModel, &ChatListModel::chatRemoved, this, [this](QWidget *w) { emit chatRemoved(w); });
+
     chatList = new QListView(this);
     chatList->setSelectionMode(QAbstractItemView::SingleSelection);
     ChatListItemDelegate *delegate = new ChatListItemDelegate(this);
     chatList->setItemDelegate(delegate);
-
-    chatModel = new ChatListModel(this);
-    connect(chatModel, &ChatListModel::chatRemoved, this, [this](QWidget *w) { emit chatRemoved(w); });
     chatList->setModel(chatModel);
 
     connect(chatList, &QListView::clicked, this, &LeftPanelWidget::onChatItemClicked);
@@ -83,40 +83,6 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     aboutButton->setMinimumHeight(48);
     connect(aboutButton, &QPushButton::clicked, this, &LeftPanelWidget::aboutClicked);
     layout->addWidget(aboutButton);
-
-    setupStyles();
-}
-
-void LeftPanelWidget::setupStyles()
-{
-    setStyleSheet(R"(
-        QWidget {
-            background-color: #2b2b2b;
-            color: #dddddd;
-        }
-        QPushButton {
-            background-color: #3a3a3a;
-            border: 1px solid #555;
-            border-radius: 8px;
-            padding: 8px;
-            font-size: 16px;
-        }
-        QPushButton:hover {
-            background-color: #444;
-        }
-        QListView {
-            background-color: #3a3a3a;
-            border: 1px solid #444;
-            border-radius: 6px;
-        }
-        QListView::item {
-            padding: 10px;
-        }
-        QListView::item:selected {
-            background-color: #555;
-            border-left: 4px solid #7ab6ff;
-        }
-    )");
 }
 
 void LeftPanelWidget::createInitialChat(const QString &name)
@@ -130,28 +96,6 @@ void LeftPanelWidget::createInitialChat(const QString &name)
 
     // Emit signal to update main window
     ChatListModel::ChatData *chatData = chatModel->getChatData(0);
-    if (chatData) {
-        emit chatSelected(chatData->widget);
-    }
-}
-
-void LeftPanelWidget::onNewChat()
-{
-    // Create a new chat with default name
-    QString newName = "New chat";
-    int count = chatModel->chatCount();
-    if (count > 0) {
-        newName = QString("New LLM chat %1").arg(count + 1);
-    }
-
-    chatModel->addChat(newName);
-
-    // Select the new chat
-    QModelIndex newIndex = chatModel->index(count, 0);
-    chatList->setCurrentIndex(newIndex);
-
-    // Emit signal to update main window
-    ChatListModel::ChatData *chatData = chatModel->getChatData(count);
     if (chatData) {
         emit chatSelected(chatData->widget);
     }
@@ -178,7 +122,13 @@ void LeftPanelWidget::onEditChat()
     QString currentName = currentIndex.data(Qt::DisplayRole).toString();
 
     bool ok = false;
-    QString newName = QInputDialog::getText(this, "Rename chat", "Enter name:", QLineEdit::Normal, currentName, &ok);
+    QString newName = QInputDialog::getText( //
+        this,
+        "Rename chat",
+        "Enter name:",
+        QLineEdit::Normal,
+        currentName,
+        &ok);
     if (ok) {
         chatModel->setData(currentIndex, newName, Qt::EditRole);
     }
@@ -232,10 +182,10 @@ void LeftPanelWidget::onChatNameChanged(const QString & /*newName*/)
 void LeftPanelWidget::onAddChat()
 {
     // Create a new chat with default name
-    QString newName = "New chat";
+    QString newName = "New LLM chat";
     int count = chatModel->chatCount();
     if (count > 0) {
-        newName = QString("New chat %1").arg(count + 1);
+        newName = QString("New LLM chat %1").arg(count + 1);
     }
 
     chatModel->addChat(newName);
@@ -249,6 +199,11 @@ void LeftPanelWidget::onAddChat()
     if (chatData) {
         emit chatSelected(chatData->widget);
     }
+}
+
+void LeftPanelWidget::onNewChat()
+{
+    onAddChat();
 }
 
 void LeftPanelWidget::onContextMenu(const QPoint &point)

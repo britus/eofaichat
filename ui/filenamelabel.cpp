@@ -11,7 +11,6 @@ FileNameLabel::FileNameLabel(const QString &fileName, QWidget *parent)
 
     // Set up remove button
     m_removeButton->setIcon(style()->standardIcon(QStyle::SP_DialogCloseButton));
-    m_removeButton->setStyleSheet("QToolButton { border: none; padding: 0px; }");
     m_removeButton->setAutoRaise(true);
 
     // Set up layout

@@ -1,6 +1,7 @@
 #include <chatpanelwidget.h>
 #include <leftpanelwidget.h>
 #include <mainwindow.h>
+#include <QApplication>
 #include <QDebug>
 #include <QHBoxLayout>
 #include <QMainWindow>
@@ -32,7 +33,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     // ---------------- Chat container ----------------
     chatContainer = new QWidget(this);
-    chatContainer->setStyleSheet("background:#1e1e1e;");
     mainLayout->addWidget(chatContainer, 1);
 
     // Create initial chat
@@ -41,7 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    // 
+    //
 }
 
 void MainWindow::onChatRemoved(QWidget *chatWidget)
@@ -87,7 +87,7 @@ void MainWindow::onChatSelected(QWidget *chatWidget)
     chatWidget->setVisible(true);
 }
 
-QWidget* MainWindow::getCentralWidget() const
+QWidget *MainWindow::getCentralWidget() const
 {
     return centralWidget;
 }
