@@ -1,6 +1,6 @@
 #ifndef LLMCHAT_CLIENT_H
 #define LLMCHAT_CLIENT_H
-
+#include <toolmodel.h>
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -39,6 +39,11 @@ public:
     // Model listing
     void listModels();
 
+    ToolModel *toolModel() const;
+
+public slots:
+    void setToolModel(ToolModel *newToolModel);
+
 signals:
     // Success signals
     void chatCompletionReceived(const QJsonObject &response);
@@ -59,7 +64,9 @@ private:
     QString m_serverUrl;
     QString m_apiKey;
     int m_timeout;
+    ToolModel *m_toolModel;
 
+private:
     void sendRequest(const QJsonObject &requestBody, const QString &endpoint, bool isGetMethod = false);
     QJsonObject buildChatCompletionRequest(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream);
     void parseStreamingResponse(QNetworkReply *reply);

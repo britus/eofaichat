@@ -38,12 +38,13 @@
 
 ChatPanelWidget::ChatPanelWidget(QWidget *parent)
     : QWidget(parent)
-    , llmclient(new LLMChatClient(parent))
-    , llmModels(new ModelListModel(parent))
-    , chatModel(new ChatModel(parent))
-    , syntaxModel(new SyntaxColorModel(parent))
-    , fileListModel(new FileListModel(parent))
-    , toolModel(new ToolModel(parent))
+    , llmclient(new LLMChatClient(this))
+    , llmModels(new ModelListModel(this))
+    , chatModel(new ChatModel(this))
+    , syntaxModel(new SyntaxColorModel(this))
+    , fileListModel(new FileListModel(this))
+    , toolModel(new ToolModel(this))
+    , toolService(new ToolService(this))
 {
     setMinimumHeight(640);
 
@@ -85,6 +86,9 @@ ChatPanelWidget::ChatPanelWidget(QWidget *parent)
     // Connect chat message model events
     connectChatModel();
 
+    // Connect tool service model events
+    connectToolService();
+
     // Connect LLM client events
     connectLLMClient();
 
@@ -97,6 +101,27 @@ ChatPanelWidget::ChatPanelWidget(QWidget *parent)
 }
 
 // ==================================================
+
+inline void ChatPanelWidget::connectToolService()
+{
+    //--
+    connect(toolService, &ToolService::executeCompleted, this, [this](const QByteArray &content) {
+        QString llmodel = selectedModelEntry.id;
+#if 0
+        // Add sender bubble using ChatTextWidget
+        ChatMessage cm;
+        cm.setContent(content);
+        cm.setRole(ChatMessage::Role::ChatRole);
+        cm.setId(QStringLiteral("CS-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+        cm.setSystemFingerprint(cm.id());
+        cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
+        cm.setModel(llmodel);
+        chatModel->addMessage(cm);
+#endif
+        // Emit or send JSON for network layer
+        llmclient->sendChat(llmodel, content);
+    });
+}
 
 inline void ChatPanelWidget::connectChatModel()
 {
@@ -134,6 +159,27 @@ inline void ChatPanelWidget::connectChatModel()
     });
     connect(chatModel, &ChatModel::messageChanged, this, [](int index, ChatMessage *message) { //
         qDebug().noquote() << "[CHATWIDGET] messageChanged row:" << index << message->id();
+    });
+    connect(chatModel, &ChatModel::toolingRequest, this, [this](ChatMessage *message) { //
+        qDebug().noquote() << "[CHATWIDGET] toolingRequest messageId:" << message->id();
+        if (message->tools().isEmpty()) {
+            return;
+        }
+        foreach (ChatMessage::ToolEntry tool, message->tools()) {
+            switch (tool.toolType()) {
+                case ChatMessage::ToolType::Tool:
+                case ChatMessage::ToolType::Function: {
+                    toolService->execute(toolModel, tool.functionName(), tool.arguments());
+                    break;
+                }
+                case ChatMessage::ToolType::Resuource: {
+                    break;
+                }
+                case ChatMessage::ToolType::Prompt: {
+                    break;
+                }
+            }
+        }
     });
 }
 
@@ -370,6 +416,12 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
 
 inline void ChatPanelWidget::connectLLMClient()
 {
+    // link tool model to LLM communication client
+    llmclient->setToolModel(toolModel);
+
+    connect(llmclient, &LLMChatClient::modelListReceived, this, [this](const QJsonArray &models) { //
+        llmModels->loadFrom(models);
+    });
     connect(llmclient, &LLMChatClient::networkError, this, [this](QNetworkReply::NetworkError error, const QString &message) {
         qDebug().noquote() << "[CHATWIDGET]" << message << error;
         ChatMessage cm;
@@ -392,12 +444,6 @@ inline void ChatPanelWidget::connectLLMClient()
         cm.setContent(error);
         chatModel->addMessage(cm);
     });
-    connect(llmclient, &LLMChatClient::chatCompletionReceived, this, [this](const QJsonObject &response) { //
-        chatModel->addMessageFromJson(response);
-    });
-    connect(llmclient, &LLMChatClient::modelListReceived, this, [this](const QJsonArray &models) { //
-        llmModels->loadFrom(models);
-    });
     connect(llmclient, &LLMChatClient::streamingDataReceived, this, [this](const QString &data) {
         ChatMessage cm;
         cm.setRole(ChatMessage::Role::AssistantRole);
@@ -407,6 +453,9 @@ inline void ChatPanelWidget::connectLLMClient()
         cm.setModel(selectedModelEntry.id);
         cm.setContent(data);
         chatModel->addMessage(cm);
+    });
+    connect(llmclient, &LLMChatClient::chatCompletionReceived, this, [this](const QJsonObject &response) { //
+        chatModel->addMessageFromJson(response);
     });
 }
 

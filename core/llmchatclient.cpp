@@ -133,6 +133,7 @@ void LLMChatClient::sendRequest(const QJsonObject &requestBody, const QString &e
     });
 }
 
+#if 0
 QJsonArray LLMChatClient::loadToolsConfig() const
 {
     // Use QStandardPaths to get the application configuration directory
@@ -162,6 +163,25 @@ QJsonArray LLMChatClient::loadToolsConfig() const
         }
     }
     return tools;
+}
+#endif
+
+QJsonArray LLMChatClient::loadToolsConfig() const
+{
+    if (!m_toolModel || m_toolModel->rowCount() == 0) {
+        return QJsonArray();
+    }
+
+    QJsonArray result;
+    QList<QJsonObject> toolList = m_toolModel->toolObjects();
+    foreach (auto tool, toolList) {
+        QJsonObject fncItem;
+        fncItem["type"] = "function"; //?? resource, prompt ??
+        fncItem["function"] = tool;
+        result.append(fncItem);
+    }
+
+    return result;
 }
 
 QJsonObject LLMChatClient::buildChatCompletionRequest(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream)
@@ -297,4 +317,14 @@ void LLMChatClient::onSslErrors(QNetworkReply *reply, const QList<QSslError> &er
     for (const QSslError &error : errors) {
         emit errorOccurred("SSL Error: " + error.errorString());
     }
+}
+
+ToolModel *LLMChatClient::toolModel() const
+{
+    return m_toolModel;
+}
+
+void LLMChatClient::setToolModel(ToolModel *model)
+{
+    m_toolModel = model;
 }

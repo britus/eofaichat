@@ -1,0 +1,18 @@
+{
+    "name": "generate_api_doc",
+    "description": "Generate API documentation",
+    "arguments": [
+        {
+            "name": "function_name",
+            "description": "Function name",
+            "required": true
+        },
+        {
+            "name": "parameters",
+            "description": "Parameters",
+            "required": false
+        }
+    ],
+    "template": "Please generate detailed API documentation for the function {{function_name}}.\n\nFunction name: {{function_name}}\nParameters: {{parameters}}\n\nPlease include:\n1. Description of functionality\n2. Explanation of parameters\n3. Description of return values\n4. Usage examples"
+}
+

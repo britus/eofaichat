@@ -1,0 +1,50 @@
+{
+  "name": "read_source_file",
+  "title": "Read Source Code File",
+  "description": "Reads the content of a source code file",
+  "execHandler": "SourceCodeHandler",
+  "execMethod": "readSourceFile",
+  "annotations": {
+      "audience": ["user", "assistant"],
+      "priority": 0.9,
+      "lastModified": "2025-01-12T15:00:58Z"
+  },
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "Absolute or relative path to the file"
+      }
+    },
+    "required": ["file_path"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "description": "object",
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "The path used for the file"
+      },
+      "content": {
+        "type": "string",
+        "description": "The full content of the file"
+      },
+      "encoding": {
+        "type": "string",
+        "description": "Character encoding of the file (e.g. UTF-8)"
+      },
+      "line_count": {
+        "type": "integer",
+        "description": "Number of lines in the file"
+      },
+      "size": {
+        "type": "integer",
+        "description": "File size in bytes"
+      }
+    },
+    "required": ["file_path", "content", "encoding", "line_count", "size"]
+  }
+}

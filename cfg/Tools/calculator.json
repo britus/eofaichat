@@ -1,0 +1,62 @@
+{
+    "name": "calculator",
+    "title": "EoF MyCalculatorHandler",
+    "description": "Calculator description of MyCalculatorHandler",
+    "execHandler": "MyCalculatorHandler",
+    "execMethod": "calculateOperation",
+    "annotations": {
+        "audience": ["user", "assistant"],
+        "priority": 0.8,
+        "lastModified": "2025-01-12T15:00:58Z"
+    },
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "a": {
+                "type": "number",
+                "description": "number"
+            },
+            "b": {
+                "type": "number",
+                "description": "number"
+            },
+            "operation": {
+                "type": "string",
+                "description": "string",
+                "enum": ["add", "subtract", "multiply", "divide"]
+            }
+        },
+        "required": ["a", "b", "operation"],
+        "additionalProperties": false
+    },
+    "outputSchema": {
+        "type": "object",
+        "description": "object",
+        "properties": {
+            "operands": {
+                "type": "array",
+                "description": "array",
+                "items": {
+                    "type": "number"
+                }
+            },
+            "operation": {
+                "type": "string",
+                "description": "string"
+            },
+            "result": {
+                "type": "number",
+                "description": "number"
+            },
+            "success": {
+                "type": "boolean",
+                "description": "boolean"
+            },
+            "timestamp": {
+                "type": "string",
+                "description": "string"
+            }
+        },
+        "required": ["operands", "operation", "result", "success", "timestamp"]
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "uri": "wrapper://example",
+    "name": "Wrapper Resource Example",
+    "description": "Wraps QObject objects through MCPResourceWrapper, automatically updates content every 5 seconds",
+    "mimeType": "application/json",
+    "type": "wrapper",
+    "handlerName": "MyResourceHandler",
+    "annotations": {
+        "audience": ["user", "assistant"],
+        "priority": 0.9,
+        "lastModified": "2025-01-12T15:00:58Z"
+    }
+}

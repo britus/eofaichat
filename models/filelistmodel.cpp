@@ -1,4 +1,4 @@
-#include "filelistmodel.h"
+#include <filelistmodel.h>
 #include <QDir>
 #include <QFileInfo>
 
@@ -71,8 +71,6 @@ void FileListModel::loadContentOfFiles(QByteArray &content)
 
 void FileListModel::clear()
 {
-    beginResetModel();
     QStandardItemModel::clear();
-    endResetModel();
     emit removed(-1);
 }

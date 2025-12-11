@@ -108,12 +108,10 @@ void ChatModel::addMessage(const ChatMessage &message)
 void ChatModel::addMessageFromJson(const QJsonObject &json)
 {
     beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
-    ChatMessage *newMessage = new ChatMessage(json);
-    if (newMessage->content().isEmpty()) {
-        if (isToolingResponse(newMessage)) {
-            // execute tool through MCP or SDIO inline
-            emit toolingRequest(newMessage);
-        }
+    ChatMessage *newMessage = new ChatMessage(json, this);
+    // ToolService: execute tool through MCP or SDIO or onboard
+    if (isToolingResponse(newMessage)) {
+        emit toolingRequest(newMessage);
     }
     m_messages.append(newMessage);
     endInsertRows();
@@ -123,13 +121,14 @@ void ChatModel::addMessageFromJson(const QJsonObject &json)
 
 bool ChatModel::isToolingResponse(ChatMessage *message)
 {
-    // chat message has first prio
-    if (!message->content().isEmpty()) {
+    // skip or chat message has first prio
+    if (!message || !message->content().isEmpty()) {
         return false;
     }
     // tooling may have "resource" and "prompt" too?
     foreach (auto tool, message->tools()) {
-        if (tool.toolType().startsWith("funcion")) {
+        if (tool.toolType() == ChatMessage::ToolType::Function //
+            || tool.toolType() == ChatMessage::ToolType::Tool) {
             return true;
         }
     }

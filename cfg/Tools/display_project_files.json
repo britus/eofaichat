@@ -1,0 +1,76 @@
+{
+  "name": "display_project_files",
+  "title": "Display Project Files",
+  "description": "Displays all source code files in the project directory. This tool requrire file extension find files.",
+  "execHandler": "SourceCodeHandler",
+  "execMethod": "displayProjectFiles",
+  "annotations": {
+      "audience": ["user", "assistant"],
+      "priority": 0.9,
+      "lastModified": "2025-01-12T15:00:58Z"
+  },
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "project_path": {
+        "type": "string",
+        "description": "Path to the project directory"
+      },
+      "recursive": {
+        "type": "boolean",
+        "description": "Search recursively through subdirectories",
+        "default": true
+      },
+      "sort_by": {
+        "type": "string",
+        "enum": ["name", "size", "date"],
+        "description": "Sorting criterion",
+        "default": "name"
+      }
+    },
+    "required": ["project_path"]
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "relative_path": {
+              "type": "string"
+            },
+            "size": {
+              "type": "integer"
+            },
+            "last_modified": {
+              "type": "string"
+            },
+            "directory": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "summary": {
+        "type": "object",
+        "properties": {
+          "total_files": {
+            "type": "integer"
+          },
+          "total_size": {
+            "type": "integer"
+          },
+          "directories": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "required": ["files", "summary"]
+  }
+}

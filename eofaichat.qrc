@@ -7,5 +7,16 @@
         <file>assets/indicators/checkbox-24_black_alpha.png</file>
         <file>assets/indicators/checkbox-24_white_alpha_unchecked.png</file>
         <file>assets/indicators/checkbox-24_white_alpha.png</file>
+        <file>cfg/Tools/calculator.json</file>
+        <file>cfg/Tools/display_project_files.json</file>
+        <file>cfg/Tools/list_source_files.json</file>
+        <file>cfg/Tools/read_source_file.json</file>
+        <file>cfg/Tools/write_source_file.json</file>
+        <file>cfg/Resources/wrapper_example.json</file>
+        <file>cfg/Resources/wrapper_dynamic.json</file>
+        <file>cfg/Resources/system_info.json</file>
+        <file>cfg/Prompts/translage_cn_to_en.json</file>
+        <file>cfg/Prompts/generate_api_doc.json</file>
+        <file>cfg/Prompts/code_review.json</file>
     </qresource>
 </RCC>

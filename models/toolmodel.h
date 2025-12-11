@@ -1,6 +1,5 @@
 #ifndef TOOLMODEL_H
 #define TOOLMODEL_H
-
 #include <QAbstractListModel>
 #include <QDir>
 #include <QJsonObject>
@@ -52,6 +51,8 @@ public:
     // Custom methods
     void loadFromDirectory(const QFileInfo &fileInfo, ToolType type);
     QList<QJsonObject> toolObjects() const;
+    QJsonObject toolObject(const QString &name) const;
+    ToolModel::ToolEntry toolByName(const QString &name) const;
 
     void loadToolsConfig();
     bool hasExecutables() const;

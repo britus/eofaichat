@@ -1,0 +1,18 @@
+{
+    "name": "translate_cn_to_en",
+    "description": "Translate Chinese comments and strings to English",
+    "arguments": [
+        {
+            "name": "file_path",
+            "description": "File name to translate",
+            "required": true
+        },
+        {
+            "name": "language",
+            "description": "Programming language",
+            "required": false
+        }
+    ],
+    "template": "Please translate Chinese comments and strings to English in {{language}} file:\n{{file_path}}"
+}
+

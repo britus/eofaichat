@@ -10,6 +10,7 @@
 #include <progresspopup.h>
 #include <syntaxcolormodel.h>
 #include <toolmodel.h>
+#include <toolservice.h>
 #include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -72,6 +73,7 @@ private:
 
     // LLM Tooling
     ToolModel *toolModel;
+    ToolService *toolService;
 
 private:
     inline void createChatArea(QVBoxLayout *);
@@ -82,6 +84,7 @@ private:
     inline void createToolsButton(QHBoxLayout *);
     inline void createSendButton(QHBoxLayout *);
     inline void connectLLMClient();
+    inline void connectToolService();
     inline void connectChatModel();
     // Show/hide progress popup methods
     inline void showProgressPopup();

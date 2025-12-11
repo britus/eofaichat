@@ -36,6 +36,53 @@ ChatMessage::ChatMessage(const ChatMessage &other)
     , m_usage(other.usage())
 {}
 
+void ChatMessage::parseToolCalls(const QJsonValue toolCalls)
+{
+    QJsonArray toolCallsArray = toolCalls.toArray();
+    for (int i = 0; i < toolCallsArray.count(); i++) {
+        if (!toolCallsArray[i].isObject()) {
+            continue;
+        }
+        ToolEntry tool = {};
+        QJsonObject toolObject = toolCallsArray[i].toObject();
+        // Extract type
+        QJsonValue typeValue = toolObject["type"];
+        if (typeValue.isString()) {
+            tool.setToolType(typeValue.toString());
+        }
+        // Extract id
+        QJsonValue idValue = toolObject["id"];
+        if (idValue.isString()) {
+            tool.setToolCallId(idValue.toString());
+        }
+        // Extract function information
+        QJsonValue functionValue = toolObject["function"];
+        if (functionValue.isObject()) {
+            QJsonObject functionObj = functionValue.toObject();
+            // Extract name
+            QJsonValue nameValue = functionObj["name"];
+            if (nameValue.isString()) {
+                tool.setFunctionName(nameValue.toString());
+            }
+            // Extract arguments kv array
+            QJsonValue argumentsValue = functionObj["arguments"];
+            if (argumentsValue.isString()) {
+                tool.setArguments(argumentsValue.toString());
+            }
+        }
+        m_tools.append(tool);
+    }
+
+    foreach (auto t, m_tools) {
+        qDebug("[ChatMessage] Tool to call: %s::%s %s", //
+               qPrintable(t.m_toolType),
+               qPrintable(t.functionName()),
+               qPrintable(t.arguments()));
+    }
+
+    emit toolsChanged();
+}
+
 void ChatMessage::parseMessageContent(const QJsonObject &json)
 {
     // Initialize default values
@@ -54,11 +101,13 @@ void ChatMessage::parseMessageContent(const QJsonObject &json)
             QJsonValue choice = choicesArray.first();
             if (choice.isObject()) {
                 QJsonObject choiceObj = choice.toObject();
+
                 // Extract finish_reason
                 QJsonValue finishReasonValue = choiceObj["finish_reason"];
                 if (finishReasonValue.isString()) {
                     m_finishReason = finishReasonValue.toString();
                 }
+
                 // Extract index
                 QJsonValue indexValue = choiceObj["index"];
                 if (indexValue.isDouble()) {
@@ -77,6 +126,7 @@ void ChatMessage::parseMessageContent(const QJsonObject &json)
                     m_usage = usageValue.toObject();
                 }
 
+                // normale message or tool call item
                 QJsonValue messageValue = choiceObj["message"];
                 if (messageValue.isObject()) {
                     QJsonObject messageObj = messageValue.toObject();
@@ -92,41 +142,7 @@ void ChatMessage::parseMessageContent(const QJsonObject &json)
                     // Extract tool_calls
                     QJsonValue toolCallsValue = messageObj["tool_calls"];
                     if (toolCallsValue.isArray() && !toolCallsValue.toArray().isEmpty()) {
-                        QJsonArray toolCallsArray = toolCallsValue.toArray();
-                        for (int i = 0; i < toolCallsArray.count(); i++) {
-                            if (!toolCallsArray[i].isObject()) {
-                                continue;
-                            }
-                            ToolEntry tool = {};
-                            QJsonObject toolObject = toolCallsArray[i].toObject();
-                            // Extract type
-                            QJsonValue typeValue = toolObject["type"];
-                            if (typeValue.isString()) {
-                                tool.setToolType(typeValue.toString());
-                            }
-                            // Extract id
-                            QJsonValue idValue = toolObject["id"];
-                            if (idValue.isString()) {
-                                tool.setToolCallId(idValue.toString());
-                            }
-                            // Extract function information
-                            QJsonValue functionValue = toolObject["function"];
-                            if (functionValue.isObject()) {
-                                QJsonObject functionObj = functionValue.toObject();
-                                // Extract name
-                                QJsonValue nameValue = functionObj["name"];
-                                if (nameValue.isString()) {
-                                    tool.setFunctionName(nameValue.toString());
-                                }
-                                // Extract arguments kv array
-                                QJsonValue argumentsValue = functionObj["arguments"];
-                                if (argumentsValue.isString()) {
-                                    tool.setArguments(argumentsValue.toString());
-                                }
-                            }
-                            m_tools.append(tool);
-                        }
-                        emit toolsChanged();
+                        parseToolCalls(toolCallsValue);
                     }
 
                     // Extract role with error handling

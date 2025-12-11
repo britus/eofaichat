@@ -49,11 +49,13 @@ QWidget *ToolsWidget::createToolPage(ToolModel::ToolType type)
     pageWidget->setObjectName(QStringLiteral("toolPage%1").arg(type));
 
     QScrollArea *scrollArea = new QScrollArea();
-    QVBoxLayout *layout = new QVBoxLayout(pageWidget);
+    QVBoxLayout *scrollAreaLayout = new QVBoxLayout(pageWidget);
+    scrollAreaLayout->setContentsMargins(6, 6, 6, 6);
 
     // Create container widget for the toolbar and tool items
     QWidget *containerWidget = new QWidget();
     containerWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
     QVBoxLayout *containerLayout = new QVBoxLayout(containerWidget);
 
     // Create toolbar for this page
@@ -66,7 +68,8 @@ QWidget *ToolsWidget::createToolPage(ToolModel::ToolType type)
     if (m_model) {
         for (int i = 0; i < m_model->rowCount(); ++i) {
             QModelIndex index = m_model->index(i);
-            ToolModel::ToolType entryType = static_cast<ToolModel::ToolType>(m_model->data(index, ToolModel::TypeRole).toInt());
+            QVariant v = m_model->data(index, ToolModel::TypeRole);
+            ToolModel::ToolType entryType = v.value<ToolModel::ToolType>();
             if (entryType == type) {
                 QWidget *toolItem = createToolItem(i);
                 containerLayout->addWidget(toolItem);
@@ -76,12 +79,11 @@ QWidget *ToolsWidget::createToolPage(ToolModel::ToolType type)
 
     // Add stretch to push items up
     containerLayout->addStretch();
-    layout->addWidget(containerWidget);
-    layout->addStretch();
+    scrollAreaLayout->addWidget(containerWidget);
+    scrollAreaLayout->addStretch();
 
     scrollArea->setWidget(pageWidget);
     scrollArea->setWidgetResizable(true);
-
     return scrollArea;
 }
 
@@ -135,18 +137,16 @@ QWidget *ToolsWidget::createToolItem(int index)
 
     // Checkbox for enabling/disabling tool
     QCheckBox *checkBox = new QCheckBox(widget);
-    ToolModel::ToolOption option = static_cast<ToolModel::ToolOption>(m_model->data(m_model->index(index), ToolModel::OptionRole).toInt());
-    checkBox->setChecked(option != ToolModel::ToolDisabled);
-
     // Store the index with the checkbox for later use
     checkBox->setProperty("toolIndex", index);
-
-    // Connect checkbox to update tool option
-    connect(checkBox, &QCheckBox::clicked, [this, index](bool checked) {
-        ToolModel::ToolOption newOption = checked ? ToolModel::ToolEnabled : ToolModel::ToolDisabled;
-        updateToolOption(index, newOption);
-    });
-
+    QVariant vopt = m_model->data(m_model->index(index), ToolModel::OptionRole);
+    ToolModel::ToolOption option = vopt.value<ToolModel::ToolOption>();
+    checkBox->setChecked(option == ToolModel::ToolEnabled);
+    checkBox->setCheckState(option == ToolModel::ToolEnabled //
+                                ? Qt::CheckState::Checked
+                                : (option == ToolModel::AskBeforeRun //
+                                       ? Qt::CheckState::PartiallyChecked
+                                       : Qt::CheckState::Unchecked));
     // Label for tool name
     QLabel *nameLabel = new QLabel(m_model->data(m_model->index(index), ToolModel::NameRole).toString(), widget);
 
@@ -156,12 +156,42 @@ QWidget *ToolsWidget::createToolItem(int index)
     toolButton->setPopupMode(QToolButton::InstantPopup);
 
     QMenu *menu = new QMenu(toolButton);
-    QAction *allowAction = menu->addAction(tr("Allow"));
-    QAction *askBeforeRunAction = menu->addAction(tr("Ask before run"));
 
-    // Connect menu actions to update tool option
-    connect(allowAction, &QAction::triggered, [this, index]() { updateToolOption(index, ToolModel::ToolEnabled); });
-    connect(askBeforeRunAction, &QAction::triggered, [this, index]() { updateToolOption(index, ToolModel::AskBeforeRun); });
+    QAction *allowAction = menu->addAction(tr("Allow"));
+    allowAction->setCheckable(true);
+    allowAction->setChecked(option == ToolModel::ToolEnabled);
+
+    QAction *askBeforeRunAction = menu->addAction(tr("Ask before run"));
+    askBeforeRunAction->setCheckable(true);
+    askBeforeRunAction->setChecked(option == ToolModel::AskBeforeRun);
+
+    connect(allowAction, &QAction::triggered, [this, checkBox, allowAction, askBeforeRunAction, index](bool checked) { //
+        updateToolOption(index, ToolModel::ToolEnabled);
+        allowAction->setChecked(checked);
+        if (checked) {
+            askBeforeRunAction->setChecked(false);
+        }
+        checkBox->setCheckState(checked ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
+    });
+
+    connect(askBeforeRunAction, &QAction::triggered, [this, checkBox, allowAction, askBeforeRunAction, index](bool checked) { //
+        updateToolOption(index, ToolModel::AskBeforeRun);
+        askBeforeRunAction->setChecked(checked);
+        if (checked) {
+            allowAction->setChecked(false);
+        }
+        checkBox->setCheckState(Qt::CheckState::PartiallyChecked);
+    });
+
+    // Connect checkbox to update tool option
+    connect(checkBox, &QCheckBox::clicked, [this, allowAction, askBeforeRunAction, index](bool checked) {
+        ToolModel::ToolOption newOption = checked ? ToolModel::ToolEnabled : ToolModel::ToolDisabled;
+        updateToolOption(index, newOption);
+        allowAction->setChecked(checked);
+        if (checked) {
+            askBeforeRunAction->setChecked(false);
+        }
+    });
 
     // Set the initial state of menu actions based on current tool option
     if (option == ToolModel::ToolEnabled) {

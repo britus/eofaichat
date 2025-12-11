@@ -1,0 +1,70 @@
+{
+  "name": "list_source_files",
+  "title": "List Source Code Files",
+  "description": "Lists all source code files in the specified project directory",
+  "execHandler": "SourceCodeHandler",
+  "execMethod": "listSourceFiles",
+  "annotations": {
+      "audience": ["user", "assistant"],
+      "priority": 0.9,
+      "lastModified": "2025-01-12T15:00:58Z"
+  },
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "project_path": {
+        "type": "string",
+        "description": "Path to the project directory"
+      },
+      "extensions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "List of file extensions to search for (e.g. ['.cpp', '.h', '.hpp'])",
+        "default": [".cpp", ".h", ".hpp", ".c", ".cc", ".java", ".json"]
+      }
+    },
+    "required": ["project_path"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Absolute path to the file"
+            },
+            "relative_path": {
+              "type": "string",
+              "description": "Relative path from the project directory"
+            },
+            "size": {
+              "type": "integer",
+              "description": "File size in bytes"
+            },
+            "last_modified": {
+              "type": "string",
+              "description": "Last modified date (ISO 8601 format)"
+            }
+          }
+        },
+        "description": "List of found source code files"
+      },
+      "total_files": {
+        "type": "integer",
+        "description": "Total number of files found"
+      },
+      "project_path": {
+        "type": "string",
+        "description": "The project directory used"
+      }
+    },
+    "required": ["files", "total_files", "project_path"]
+  }
+}

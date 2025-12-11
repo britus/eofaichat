@@ -1,0 +1,18 @@
+{
+    "name": "code_review",
+    "description": "Review the code and provide improvement suggestions",
+    "arguments": [
+        {
+            "name": "code",
+            "description": "Code to be reviewed",
+            "required": true
+        },
+        {
+            "name": "language",
+            "description": "Programming language",
+            "required": false
+        }
+    ],
+    "template": "Please review the following {{language}} code and provide improvement suggestions:\n{{code}}\nPlease focus on the following aspects:\n1. Code quality and readability\n2. Performance optimization suggestions\n3. Potential bugs\n4. Best practices"
+}
+

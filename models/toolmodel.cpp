@@ -72,9 +72,41 @@ QList<QJsonObject> ToolModel::toolObjects() const
 {
     QList<QJsonObject> result;
     for (const ToolEntry &entry : m_toolEntries) {
-        result.append(entry.tool);
+        if (entry.option == ToolEnabled || entry.option == AskBeforeRun) {
+            result.append(entry.tool);
+        }
     }
     return result;
+}
+
+ToolModel::ToolEntry ToolModel::toolByName(const QString &name) const
+{
+    foreach (const ToolEntry &entry, m_toolEntries) {
+        QString ename = entry.name;
+        ename = ename.replace("-", "_");
+        ename = ename.replace(" ", "_");
+        ename = ename.toLower().trimmed();
+
+        QString rname = name;
+        rname = rname.replace("-", "_");
+        rname = rname.replace(" ", "_");
+        rname = rname.toLower().trimmed();
+
+        if (rname.contains(ename)) {
+            return entry;
+        }
+    }
+    return {};
+}
+
+QJsonObject ToolModel::toolObject(const QString &name) const
+{
+    for (const ToolEntry &entry : m_toolEntries) {
+        if (entry.name == name) {
+            return entry.tool;
+        }
+    }
+    return QJsonObject();
 }
 
 void ToolModel::addToolEntry(const ToolEntry &entry)
@@ -124,11 +156,12 @@ void ToolModel::loadToolsConfig()
     baseCfgPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
 
     { // Executable tools
-        QString configPath = baseCfgPath + QDir::separator() + "Tools";
+        //QString configPath = baseCfgPath + QDir::separator() + "Tools";
+        QString configPath = QStringLiteral(":/cfg") + QDir::separator() + QStringLiteral("Tools");
 
         // ensure directory exist
         QDir configDir(configPath);
-        createConfigDir(configDir);
+        //createConfigDir(configDir);
 
         QDir::Filters filters = QDir::Files | QDir::Readable | QDir::AllDirs;
         configDir.setFilter(filters);
@@ -143,7 +176,8 @@ void ToolModel::loadToolsConfig()
     }
 
     { // Known resources
-        QString configPath = baseCfgPath + QDir::separator() + "Resources";
+        //QString configPath = baseCfgPath + QDir::separator() + "Resources";
+        QString configPath = QStringLiteral(":/cfg") + QDir::separator() + QStringLiteral("Resources");
 
         // ensure directory exist
         QDir configDir(configPath);
@@ -162,7 +196,8 @@ void ToolModel::loadToolsConfig()
     }
 
     { // Prompts
-        QString configPath = baseCfgPath + QDir::separator() + "Prompts";
+        //QString configPath = baseCfgPath + QDir::separator() + "Prompts";
+        QString configPath = QStringLiteral(":/cfg") + QDir::separator() + QStringLiteral("Prompts");
 
         // ensure directory exist
         QDir configDir(configPath);

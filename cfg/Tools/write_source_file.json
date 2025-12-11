@@ -1,0 +1,54 @@
+{
+  "name": "write_source_file",
+  "title": "Save Source Code File",
+  "description": "Saves changes to a source code file",
+  "execHandler": "SourceCodeHandler",
+  "execMethod": "writeSourceFile",
+  "annotations": {
+      "audience": ["user", "assistant"],
+      "priority": 0.9,
+      "lastModified": "2025-01-12T15:00:58Z"
+  },
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "Absolute or relative path to the file"
+      },
+      "content": {
+        "type": "string",
+        "description": "The new content of the file"
+      }
+    },
+    "required": ["file_path", "content"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "description": "object",
+    "properties": {
+      "success": {
+        "type": "boolean",
+        "description": "Was the operation successful"
+      },
+      "file_path": {
+        "type": "string",
+        "description": "The path of the saved file"
+      },
+      "backup_path": {
+        "type": "string",
+        "description": "Path to the backup (if created)"
+      },
+      "bytes_written": {
+        "type": "integer",
+        "description": "Number of bytes written"
+      },
+      "message": {
+        "type": "string",
+        "description": "Status message"
+      }
+    },
+    "required": ["success", "file_path"]
+  }
+}
