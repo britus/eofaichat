@@ -31,7 +31,6 @@ ChatTextWidget::ChatTextWidget(QWidget *parent, SyntaxColorModel *model)
     : QTextEdit(parent)
     , m_colorModel(model)
 {
-    setObjectName("ChatTextWidget");
     setReadOnly(true);
     setAcceptRichText(false); // Changed to false since we'll use QTextDocument formatting
     setFrameStyle(QFrame::NoFrame);

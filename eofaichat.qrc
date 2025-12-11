@@ -2,5 +2,10 @@
     <qresource prefix="/">
         <file>syntaxcolors.json</file>
         <file>eofaichat.css</file>
+        <file>assets/indicators/checkbox-16_black_alpha.png</file>
+        <file>assets/indicators/checkbox-24_black_alpha_unchecked.png</file>
+        <file>assets/indicators/checkbox-24_black_alpha.png</file>
+        <file>assets/indicators/checkbox-24_white_alpha_unchecked.png</file>
+        <file>assets/indicators/checkbox-24_white_alpha.png</file>
     </qresource>
 </RCC>

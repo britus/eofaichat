@@ -64,6 +64,12 @@ int main(int argc, char *argv[])
         r.close();
     }
 
+    QApplication::setOrganizationName("EoF Software Labs");
+    QApplication::setOrganizationDomain("com.eofsl");
+    QApplication::setApplicationName("eofaichat");
+    QApplication::setApplicationDisplayName("EoF Smart AI Chat");
+    QApplication::setApplicationVersion("1.0.0");
+
     QApplication a(argc, argv);
     a.setPalette(darkPalette);
     a.setStyleSheet(css);

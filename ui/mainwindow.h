@@ -1,6 +1,7 @@
 #pragma once
 #include <QHBoxLayout>
 #include <QMainWindow>
+#include <QSettings>
 #include <QWidget>
 
 class MainWindow : public QMainWindow
@@ -22,4 +23,5 @@ private:
     QHBoxLayout *mainLayout;
     QWidget *chatContainer;
     QWidget *centralWidget;
+    QSettings *settings;
 };

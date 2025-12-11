@@ -45,6 +45,8 @@ ChatPanelWidget::ChatPanelWidget(QWidget *parent)
     , fileListModel(new FileListModel(parent))
     , toolModel(new ToolModel(parent))
 {
+    setMinimumHeight(640);
+
     // create extension to language mapping once
     ChatTextTokenizer::fileExtToLanguage("cpp");
     syntaxModel->loadSyntaxModel();
@@ -291,14 +293,12 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
         if (toolsWindow == nullptr) {
             toolsWindow = new QMainWindow(this->window());
             toolsWindow->setWindowFlag(Qt::WindowType::Tool, true);
-            toolsWindow->setWindowTitle("Tools");
+            toolsWindow->setWindowTitle(qApp->applicationDisplayName() + " - Tools");
             // Set window properties
-            toolsWindow->setFixedSize(450, 320);
+            toolsWindow->setFixedSize(340, 410);
             toolsWindow->resize(toolsWindow->size());
             // Create the ToolsWidget
-            ToolsWidget *toolsWidget = new ToolsWidget(toolsWindow);
-            // Set up the tool model (this would typically be connected to a real model)
-            toolsWidget->setToolModel(toolModel);
+            ToolsWidget *toolsWidget = new ToolsWidget(toolModel, toolsWindow);
             // Set the ToolsWidget as the central widget of the window
             toolsWindow->setCentralWidget(toolsWidget);
         }
@@ -309,7 +309,7 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
     });
 
     // Tools, Resource, Prompts configuration
-    connect(toolModel, &ToolModel::toolAdded, this, [this, toolsButton](const ToolEntry &entry) { //
+    connect(toolModel, &ToolModel::toolAdded, this, [this, toolsButton](const ToolModel::ToolEntry &entry) { //
         qDebug("Tool config type %d added: %s", entry.type, qPrintable(entry.name));
         toolsButton->setEnabled(toolModel->hasExecutables()  //
                                 || toolModel->hasResources() //

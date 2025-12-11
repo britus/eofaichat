@@ -17,21 +17,23 @@ class ToolsWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit ToolsWidget(QWidget *parent = nullptr);
-    void setToolModel(ToolModel *model);
+    explicit ToolsWidget(ToolModel *model, QWidget *parent = nullptr);
 
 private slots:
     void refreshTool(int index);
     void showToolOptions(int index);
-    void updateToolOption(int index, ToolOption option);
+    void updateToolOption(int index, ToolModel::ToolOption option);
+    void selectAllTools(int pageIndex);
+    void deselectAllTools(int pageIndex);
 
 private:
     void setupUI();
     void populateToolBox();
-    QWidget *createToolPage(ToolType type);
-    QWidget *createToolBar(int index);
+    QWidget *createToolPage(ToolModel::ToolType type);
+    QWidget *createToolbar(int index);
     QWidget *createToolItem(int index);
     void centerWindow();
+    void selectAllCheckboxes(QWidget *pageWidget, bool checked);
 
     QToolBox *m_toolBox;
     ToolModel *m_model;
