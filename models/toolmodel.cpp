@@ -22,7 +22,6 @@ bool ToolModel::setData(const QModelIndex &index, const QVariant &value, int rol
     if (!index.isValid() || index.row() >= m_toolEntries.size())
         return false;
 
-    beginResetModel();
     ToolEntry &entry = m_toolEntries[index.row()];
     switch (role) {
         case Qt::UserRole:
@@ -35,9 +34,12 @@ bool ToolModel::setData(const QModelIndex &index, const QVariant &value, int rol
             entry.option = value.value<ToolOption>();
         case TypeRole:
             entry.type = value.value<ToolType>();
-        default:
+        default: {
             return false;
+        }
     }
+
+    beginResetModel();
     m_toolEntries[index.row()] = entry;
     endResetModel();
 }
