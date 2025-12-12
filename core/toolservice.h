@@ -18,7 +18,7 @@ public slots:
      * @param extensions File extension filter
      * @return JSON object with file list and summary
      */
-    Q_INVOKABLE QJsonObject displayProjectFiles(const QString &projectPath, bool recursive = true, const QString &sort_by = "name", const QStringList extensions = {});
+    Q_INVOKABLE QJsonObject displayProjectFiles(const QString &projectPath, bool recursive = true, const QString &sort_by = "name", const QStringList extensions = {}) const;
 
     /**
      * @brief Lists all source code files in the project directory
@@ -26,7 +26,7 @@ public slots:
      * @param extensions File extension filter
      * @return JSON object with results
      */
-    Q_INVOKABLE QJsonObject listSourceFiles(const QString &projectPath, const QStringList &extensions = {});
+    Q_INVOKABLE QJsonObject listSourceFiles(const QString &projectPath, const QStringList &extensions = {}) const;
 
     /**
      * @brief Reads the contents of a source code file
@@ -35,7 +35,7 @@ public slots:
      * @param offset read starting at offset
      * @return JSON object with file content
      */
-    Q_INVOKABLE QJsonObject readSourceFile(const QString &filePath, qsizetype length = -1, qsizetype offset = -1);
+    Q_INVOKABLE QJsonObject readSourceFile(const QString &filePath, qsizetype length = -1, qsizetype offset = -1) const;
 
     /**
      * @brief Saves changes to a source code file
@@ -44,7 +44,7 @@ public slots:
      * @param create_backup true or false
      * @return JSON object with result status
      */
-    Q_INVOKABLE QJsonObject writeSourceFile(const QString &filePath, const QByteArray &content, bool create_backup = true);
+    Q_INVOKABLE QJsonObject writeSourceFile(const QString &filePath, const QByteArray &content, bool create_backup = true) const;
 
     /**
      * @brief execute
@@ -53,26 +53,26 @@ public slots:
      * @param arguments
      * @return
      */
-    Q_INVOKABLE QJsonObject execute(const ToolModel *model, const QString &function, const QString &arguments);
+    Q_INVOKABLE QJsonObject execute(const ToolModel *model, const QString &function, const QString &arguments) const;
     /**
      * @brief createErrorResponse
      * @param strErrorMsg
      * @return
      */
-    Q_INVOKABLE QJsonObject createErrorResponse(const QString &strErrorMsg);
+    Q_INVOKABLE QJsonObject createErrorResponse(const QString &strErrorMsg) const;
     /**
      * @brief getFileExtensions
      * @param jsonArray
      * @return
      */
-    Q_INVOKABLE QStringList getFileExtensions(const QJsonArray &jsonArray);
+    Q_INVOKABLE QStringList getFileExtensions(const QJsonArray &jsonArray) const;
     /**
      * @brief fileInfoToJson
      * @param fileInfo
      * @param strBaseDir
      * @return
      */
-    Q_INVOKABLE QJsonObject fileInfoToJson(const QFileInfo &fileInfo, const QString &strBaseDir);
+    Q_INVOKABLE QJsonObject fileInfoToJson(const QFileInfo &fileInfo, const QString &strBaseDir) const;
 
 private:
     // Standard file extensions for source code
@@ -92,13 +92,13 @@ private:
      * @param strOriginalPath
      * @return
      */
-    QString createBackupPath(const QString &strOriginalPath);
+    QString createBackupPath(const QString &strOriginalPath) const;
     /**
      * @brief isValidPath
      * @param strPath
      * @return
      */
-    bool isValidPath(const QString &strPath);
+    bool isValidPath(const QString &strPath) const;
     /**
      * @brief findSourceFiles
      * @param strPath
@@ -106,5 +106,5 @@ private:
      * @param bRecursive
      * @return
      */
-    QList<QFileInfo> findSourceFiles(const QString &strPath, const QStringList &strExtensions, bool bRecursive);
+    QList<QFileInfo> findSourceFiles(const QString &strPath, const QStringList &strExtensions, bool bRecursive) const;
 };

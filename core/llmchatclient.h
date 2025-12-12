@@ -48,14 +48,13 @@ public:
     inline const ModelEntry &activeModel() const { return m_llmModel; }
 
 public slots:
-    void onToolRequest(const ChatMessage::ToolEntry &tool);
     void setActiveModel(const ModelEntry &model);
 
 signals:
     void errorOccurred(const QString &error);
     void networkError(QNetworkReply::NetworkError error, const QString &message);
     void streamCompleted();
-    void toolCompleted(const ChatMessage::ToolEntry &tool);
+    void toolRequest(const ChatMessage::ToolEntry &tool);
 
 private slots:
     void onFinished(QNetworkReply *reply);

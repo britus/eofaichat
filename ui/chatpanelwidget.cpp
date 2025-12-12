@@ -6,6 +6,7 @@
 #include <filenamelabel.h>
 #include <mainwindow.h>
 #include <progresspopup.h>
+#include <toolservice.h>
 #include <toolswidget.h>
 #include <QApplication>
 #include <QCoreApplication>
@@ -149,7 +150,7 @@ inline void ChatPanelWidget::createChatArea(QVBoxLayout *mainLayout)
     messagesLayout->addWidget(chatWidget);
 
     connect(chatWidget, &ChatTextWidget::documentUpdated, this, [this]() { //
-        hideProgressPopup();
+        onHideProgressPopup();
     });
 }
 
@@ -227,7 +228,7 @@ inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
                     llmclient->setActiveModel(data.value<ModelEntry>());
                 }
             }
-            hideProgressPopup();
+            onHideProgressPopup();
         });
     });
 }
@@ -335,7 +336,7 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
         }
 
         // Add sender bubble using ChatTextWidget
-        ChatMessage cm(llmclient);
+        ChatMessage cm(chatModel);
         cm.setContent(text);
         cm.setRole(ChatMessage::Role::ChatRole);
         cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
@@ -349,7 +350,7 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
         fileListModel->clear();
 
         // Show progress popup
-        showProgressPopup();
+        onShowProgressPopup();
 
         // Send JSON for network layer
         llmclient->sendChat(cm.model(), text);
@@ -358,9 +359,11 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
 
 inline void ChatPanelWidget::connectLLMClient()
 {
+    connect(llmclient, &LLMChatClient::toolRequest, this, &ChatPanelWidget::onToolRequest, Qt::QueuedConnection);
+    connect(llmclient, &LLMChatClient::streamCompleted, this, &ChatPanelWidget::onHideProgressPopup, Qt::QueuedConnection);
     connect(llmclient, &LLMChatClient::networkError, this, [this](QNetworkReply::NetworkError error, const QString &message) {
         qCritical().noquote() << "[ChatPanelWidget]" << message << error;
-        ChatMessage cm(llmclient);
+        ChatMessage cm(chatModel);
         cm.setRole(ChatMessage::Role::AssistantRole);
         cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
@@ -368,11 +371,11 @@ inline void ChatPanelWidget::connectLLMClient()
         cm.setModel(llmclient->activeModel().id);
         cm.setContent(QStringLiteral("Error: %1\n%2").arg(error).arg(message));
         chatModel->addMessage(cm);
-        hideProgressPopup();
+        onHideProgressPopup();
     });
     connect(llmclient, &LLMChatClient::errorOccurred, this, [this](const QString &error) {
         qCritical().noquote() << "[ChatPanelWidget]" << error;
-        ChatMessage cm(llmclient);
+        ChatMessage cm(chatModel);
         cm.setRole(ChatMessage::Role::AssistantRole);
         cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
@@ -380,27 +383,12 @@ inline void ChatPanelWidget::connectLLMClient()
         cm.setModel(llmclient->activeModel().id);
         cm.setContent(error);
         chatModel->addMessage(cm);
-        hideProgressPopup();
-    });
-    connect(llmclient, &LLMChatClient::toolCompleted, this, [this](const ChatMessage::ToolEntry &tool) { //
-        ChatMessage cm(llmclient);
-        cm.setRole(ChatMessage::Role::SystemRole);
-        cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
-        cm.setSystemFingerprint(cm.id());
-        cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
-        cm.setModel(llmclient->activeModel().id);
-        cm.setContent(tr("Tool(%1) #%2 %3 completed.") //
-                          .arg(tool.toolType())
-                          .arg(tool.toolCallId(), tool.functionName()));
-        chatModel->addMessage(cm);
-    });
-    connect(llmclient, &LLMChatClient::streamCompleted, this, [this]() { //
-        hideProgressPopup();
+        onHideProgressPopup();
     });
 }
 
 // ---------------- Progress Popup Methods ----------------
-void ChatPanelWidget::showProgressPopup()
+void ChatPanelWidget::onShowProgressPopup()
 {
     if (progressPopup)
         delete progressPopup;
@@ -412,7 +400,7 @@ void ChatPanelWidget::showProgressPopup()
     progressPopup->showCentered();
 }
 
-void ChatPanelWidget::hideProgressPopup()
+void ChatPanelWidget::onHideProgressPopup()
 {
     // Disable blur effect
     if (progressPopup) {
@@ -474,4 +462,55 @@ void ChatPanelWidget::dropEvent(QDropEvent *event)
         }
         event->acceptProposedAction();
     }
+}
+
+// ---------------- Chat Tooling Events ----------------
+void ChatPanelWidget::onToolRequest(const ChatMessage::ToolEntry &tool)
+{
+    const ToolService toolService(this);
+    const QString llmId = llmclient->activeModel().id;
+    if (llmId.isEmpty()) {
+        qCritical().noquote() << "[LLMChatClient] No LLM is activated.";
+        return;
+    }
+
+    qDebug().noquote() << "[LLMChatClient] onToolRequest type:" //
+                       << tool.toolType()                       //
+                       << "id:" << tool.toolCallId()            //
+                       << "function:" << tool.functionName();
+
+    QJsonObject result;
+    switch (tool.toolType()) {
+        case ChatMessage::ToolType::Tool:
+        case ChatMessage::ToolType::Function: {
+            result = toolService.execute(toolModel, tool.functionName(), tool.arguments());
+            break;
+        }
+        case ChatMessage::ToolType::Resuource: {
+            result = toolService.execute(toolModel, tool.functionName(), tool.arguments());
+            break;
+        }
+        case ChatMessage::ToolType::Prompt: {
+            result = toolService.execute(toolModel, tool.functionName(), tool.arguments());
+            break;
+        }
+    }
+    if (!result.isEmpty()) {
+        llmclient->sendChat(llmId, QJsonDocument(result).toJson(QJsonDocument::Compact), true);
+    } else {
+        const QJsonObject error = toolService.createErrorResponse( //
+            QStringLiteral("Tool '%1' does not produce any results.").arg(tool.functionName()));
+        llmclient->sendChat(llmId, QJsonDocument(error).toJson(QJsonDocument::Compact), true);
+    }
+
+    ChatMessage cm(chatModel);
+    cm.setRole(ChatMessage::Role::SystemRole);
+    cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+    cm.setSystemFingerprint(cm.id());
+    cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
+    cm.setModel(llmclient->activeModel().id);
+    cm.setContent(tr("Tool(%1) #%2 %3 completed.") //
+                      .arg(tool.toolType())
+                      .arg(tool.toolCallId(), tool.functionName()));
+    chatModel->addMessage(cm);
 }

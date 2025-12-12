@@ -40,6 +40,9 @@ protected:
 
 private slots:
     void onUpdateChatText(int index, ChatMessage *message, bool removed = false);
+    void onToolRequest(const ChatMessage::ToolEntry &tool);
+    void onHideProgressPopup();
+    void onShowProgressPopup();
 
 private:
     QVBoxLayout *messagesLayout;
@@ -82,7 +85,4 @@ private:
     inline void createSendButton(QHBoxLayout *);
     inline void connectLLMClient();
     inline void connectChatModel();
-    // Show/hide progress popup methods
-    inline void showProgressPopup();
-    inline void hideProgressPopup();
 };

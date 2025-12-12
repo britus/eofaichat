@@ -13,7 +13,7 @@ ToolService::ToolService(QObject *parent)
     //
 }
 
-QJsonObject ToolService::execute(const ToolModel *model, const QString &function, const QString &arguments)
+QJsonObject ToolService::execute(const ToolModel *model, const QString &function, const QString &arguments) const
 {
     if (function.isEmpty()) {
         return createErrorResponse(QStringLiteral("The function name is required."));
@@ -111,7 +111,7 @@ finish:
     return result;
 }
 
-QJsonObject ToolService::displayProjectFiles(const QString &projectPath, bool recursive, const QString &sortBy, const QStringList extensions)
+QJsonObject ToolService::displayProjectFiles(const QString &projectPath, bool recursive, const QString &sortBy, const QStringList extensions) const
 {
     qDebug().noquote()                                              //
         << "[ToolService]:displayProjectFiles path:" << projectPath //
@@ -195,7 +195,7 @@ QJsonObject ToolService::displayProjectFiles(const QString &projectPath, bool re
     return response;
 }
 
-QJsonObject ToolService::listSourceFiles(const QString &projectPath, const QStringList &extensions)
+QJsonObject ToolService::listSourceFiles(const QString &projectPath, const QStringList &extensions) const
 {
     qDebug().noquote()                            //
         << "[ToolService]:listSourceFiles: path:" //
@@ -240,7 +240,7 @@ QJsonObject ToolService::listSourceFiles(const QString &projectPath, const QStri
     return response;
 }
 
-QJsonObject ToolService::readSourceFile(const QString &filePath, qsizetype length, qsizetype offset)
+QJsonObject ToolService::readSourceFile(const QString &filePath, qsizetype length, qsizetype offset) const
 {
     qDebug() << "[ToolService]:readSourceFile: file:" << filePath;
     qDebug() << "[ToolService]:readSourceFile: offset:" << offset;
@@ -302,7 +302,7 @@ QJsonObject ToolService::readSourceFile(const QString &filePath, qsizetype lengt
     return response;
 }
 
-QJsonObject ToolService::writeSourceFile(const QString &filePath, const QByteArray &content, bool createBackup)
+QJsonObject ToolService::writeSourceFile(const QString &filePath, const QByteArray &content, bool createBackup) const
 {
     qDebug().noquote()                               //
         << "[ToolService]:writeSourceFile filePath:" //
@@ -389,7 +389,7 @@ QJsonObject ToolService::writeSourceFile(const QString &filePath, const QByteArr
 // Private stuff
 // ---------------------------------------------------------
 
-QList<QFileInfo> ToolService::findSourceFiles(const QString &strPath, const QStringList &extensions, bool bRecursive)
+QList<QFileInfo> ToolService::findSourceFiles(const QString &strPath, const QStringList &extensions, bool bRecursive) const
 {
     QList<QFileInfo> fileList;
     QDir dir(strPath);
@@ -436,7 +436,7 @@ QList<QFileInfo> ToolService::findSourceFiles(const QString &strPath, const QStr
     return fileList;
 }
 
-bool ToolService::isValidPath(const QString &strPath)
+bool ToolService::isValidPath(const QString &strPath) const
 {
     if (strPath.isEmpty()) {
         return false;
@@ -448,7 +448,7 @@ bool ToolService::isValidPath(const QString &strPath)
     return !strAbsPath.isEmpty();
 }
 
-QString ToolService::createBackupPath(const QString &strOriginalPath)
+QString ToolService::createBackupPath(const QString &strOriginalPath) const
 {
     QFileInfo fileInfo(strOriginalPath);
     QString strBackupDir = fileInfo.absolutePath();
@@ -465,7 +465,7 @@ QString ToolService::createBackupPath(const QString &strOriginalPath)
     return QString();
 }
 
-QJsonObject ToolService::fileInfoToJson(const QFileInfo &fileInfo, const QString &strBaseDir)
+QJsonObject ToolService::fileInfoToJson(const QFileInfo &fileInfo, const QString &strBaseDir) const
 {
     QJsonObject jsonFileInfo;
     jsonFileInfo["path"] = fileInfo.absoluteFilePath();
@@ -482,7 +482,7 @@ QJsonObject ToolService::fileInfoToJson(const QFileInfo &fileInfo, const QString
     return jsonFileInfo;
 }
 
-QStringList ToolService::getFileExtensions(const QJsonArray &jsonArray)
+QStringList ToolService::getFileExtensions(const QJsonArray &jsonArray) const
 {
     QStringList extensions;
 
@@ -505,7 +505,7 @@ QStringList ToolService::getFileExtensions(const QJsonArray &jsonArray)
     return extensions;
 }
 
-QJsonObject ToolService::createErrorResponse(const QString &strErrorMsg)
+QJsonObject ToolService::createErrorResponse(const QString &strErrorMsg) const
 {
     QJsonObject jsonError;
     jsonError["success"] = false;

@@ -1,5 +1,4 @@
 #include <llmchatclient.h>
-#include <toolservice.h>
 #include <QDebug>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -328,32 +327,32 @@ inline void LLMChatClient::parseResponse(const QJsonObject &response)
 
     // parse LLM message object
     ChatMessage cm(response, this);
-    ChatMessage *original;
+    ChatMessage *message;
 
     // if LLM message stream, update existing message
-    if ((original = chatModel()->messageById(cm.id()))) {
-        original->mergeMessage(&cm);
-        checkAndRunTooling(original);
+    if ((message = chatModel()->messageById(cm.id()))) {
+        message->mergeMessage(&cm);
     } else {
         chatModel()->addMessage(cm);
-        checkAndRunTooling(&cm);
+        message = &cm;
+    }
+
+    // run tooling (tool_calls)
+    if (message->finishReason() == "tool_calls") {
+        checkAndRunTooling(message);
     }
 }
 
 inline void LLMChatClient::checkAndRunTooling(ChatMessage *message)
 {
     // ToolService: execute tool through MCP or SDIO or onboard
-    if (message->finishReason() == "tool_calls") {
-        QTimer::singleShot(10, this, [this, message]() { //
-            foreach (const ChatMessage::ToolEntry &tool, message->tools()) {
-                qDebug("[LLMChatClient] Tool call: type=%s id=%s function=%s args=%s", //
-                       qPrintable(tool.m_toolType),
-                       qPrintable(tool.m_toolCallId),
-                       qPrintable(tool.m_functionName),
-                       qPrintable(tool.m_arguments));
-                onToolRequest(tool);
-            }
-        });
+    foreach (const ChatMessage::ToolEntry &tool, message->tools()) {
+        qDebug("[LLMChatClient] Tool call: type=%s id=%s function=%s args=%s", //
+               qPrintable(tool.m_toolType),
+               qPrintable(tool.m_toolCallId),
+               qPrintable(tool.m_functionName),
+               qPrintable(tool.m_arguments));
+        emit toolRequest(tool);
     }
 }
 
@@ -376,45 +375,4 @@ void LLMChatClient::onSslErrors(QNetworkReply *reply, const QList<QSslError> &er
 void LLMChatClient::setActiveModel(const ModelEntry &model)
 {
     m_llmModel = model;
-}
-
-void LLMChatClient::onToolRequest(const ChatMessage::ToolEntry &tool)
-{
-    ToolService toolService(this);
-
-    if (activeModel().id.isEmpty()) {
-        qCritical().noquote() << "[LLMChatClient] No LLM is activated.";
-        return;
-    }
-
-    qDebug().noquote() << "[LLMChatClient] onToolRequest type:" //
-                       << tool.toolType()                       //
-                       << "id:" << tool.toolCallId()            //
-                       << "function:" << tool.functionName();
-
-    QJsonObject result;
-    switch (tool.toolType()) {
-        case ChatMessage::ToolType::Tool:
-        case ChatMessage::ToolType::Function: {
-            result = toolService.execute(this->toolModel(), tool.functionName(), tool.arguments());
-            break;
-        }
-        case ChatMessage::ToolType::Resuource: {
-            result = toolService.execute(this->toolModel(), tool.functionName(), tool.arguments());
-            break;
-        }
-        case ChatMessage::ToolType::Prompt: {
-            result = toolService.execute(this->toolModel(), tool.functionName(), tool.arguments());
-            break;
-        }
-    }
-    if (!result.isEmpty()) {
-        sendChat(activeModel().id, QJsonDocument(result).toJson(QJsonDocument::Compact), true);
-    } else {
-        const QJsonObject error = toolService.createErrorResponse( //
-            QStringLiteral("Tool '%1' does not produce any results.").arg(tool.functionName()));
-        sendChat(activeModel().id, QJsonDocument(error).toJson(QJsonDocument::Compact), true);
-    }
-
-    emit toolCompleted(tool);
 }
