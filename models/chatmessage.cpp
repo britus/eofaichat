@@ -208,7 +208,7 @@ inline ChatMessage::ToolEntry ChatMessage::parseToolCall(const QJsonObject toolO
 {
     ToolEntry tool = {};
 
-    qDebug() << "[ChatMessage] parseToolCall with:" << toolObject;
+    //qDebug() << "[ChatMessage] parseToolCall with:" << toolObject;
 
     // Extract type
     QJsonValue typeValue = toolObject["type"];
