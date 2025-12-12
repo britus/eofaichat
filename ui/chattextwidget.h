@@ -1,4 +1,5 @@
 #pragma once
+#include <chatmessage.h>
 #include <chattexttokenizer.h>
 #include <syntaxcolormodel.h>
 #include <QObject>
@@ -10,10 +11,12 @@ class ChatTextWidget : public QTextEdit
 
 public:
     explicit ChatTextWidget(QWidget *parent = nullptr, SyntaxColorModel *model = nullptr);
-    // Set/append a Markdown message. If isSender true -> sender layout will be applied.
-    void setMessage(const QString &markdown, bool isSender);
     // Setter/getter SyntaxColorModel if needed
     void setSyntaxColorModel(SyntaxColorModel *model);
+    // LLM messages
+    void appendMessage(ChatMessage *message);
+    void updateMessage(ChatMessage *message);
+    void removeMessage(ChatMessage *message);
 
 signals:
     // Signal emitted when the text document has been updated
@@ -21,7 +24,7 @@ signals:
 
 private:
     // append given rendered document fragment or text, and attach highlighter for any code blocks
-    void appendMarkdown(const QString &markdown, bool isSender);
+    void appendMarkdown(ChatMessage *message);
     // Tokenize code for syntax highlighting
     QVector<Token> tokenizeCode(const QString &code, const QString &language);
     // Convert tokens to HTML with syntax highlighting
@@ -29,4 +32,5 @@ private:
 
 private:
     SyntaxColorModel *m_colorModel;
+    QStringList m_messages;
 };

@@ -22,7 +22,7 @@ QString TokenizerBase::tokensToHtml(const QVector<Token> &tokens, const QString 
             html += "&nbsp;&nbsp;&nbsp;&nbsp;";
         } else {
             // Apply fallback coloring if language is not determined or model is null
-            if (language.isEmpty() || !model) {
+            if (language.isEmpty() || language == "system" || !model) {
                 if (token.type == "string") {
                     color = QColor(100, 200, 100); // Green for strings
                 } else if (token.type == "bracket") {
@@ -38,7 +38,7 @@ QString TokenizerBase::tokensToHtml(const QVector<Token> &tokens, const QString 
                 } else if (token.type == "keyword") {
                     color = QColor(100, 150, 255); // Blue for keywords
                 } else {
-                    color = Qt::white;
+                    color = Qt::gray;
                 }
             } else if (model && model->hasLanguage(language)) {
                 color = model->colorFor(language, token.type, Qt::white);

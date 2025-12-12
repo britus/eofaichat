@@ -227,7 +227,9 @@ void ToolsWidget::updateToolOption(int index, ToolModel::ToolOption option)
     // Update the tool option in the model
     if (m_model) {
         QModelIndex modelIndex = m_model->index(index);
-        m_model->setData(modelIndex, option, ToolModel::OptionRole);
+        if (modelIndex.isValid()) {
+            m_model->setData(modelIndex, option, ToolModel::OptionRole);
+        }
     }
 }
 

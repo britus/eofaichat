@@ -1,23 +1,44 @@
-#include "chatmessage.h"
+#include <chatmessage.h>
+#include <llmchatclient.h>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonValue>
 
 ChatMessage::ChatMessage(QObject *parent)
     : QObject(parent)
-    , m_role(AssistantRole)
+    , m_content()
+    , m_role(UserRole)
     , m_created(0)
+    , m_id()
+    , m_model()
+    , m_object()
+    , m_systemFingerprint()
+    , m_finishReason()
     , m_choiceIndex(0)
+    , m_stats()
+    , m_usage()
+    , m_tools()
 {}
 
 ChatMessage::ChatMessage(const QJsonObject &json, QObject *parent)
     : QObject(parent)
+    , m_content()
+    , m_role(AssistantRole)
+    , m_created(0)
+    , m_id()
+    , m_model()
+    , m_object()
+    , m_systemFingerprint()
+    , m_finishReason()
+    , m_choiceIndex(0)
+    , m_stats()
+    , m_usage()
+    , m_tools()
 {
+    // Parse other fields from the JSON structure
+    parseHeaderFields(json);
     // Parse the JSON structure to extract message content and role
     parseMessageContent(json);
-
-    // Parse other fields from the JSON structure
-    parseOtherFields(json);
 }
 
 // Copy constructor
@@ -34,252 +55,277 @@ ChatMessage::ChatMessage(const ChatMessage &other)
     , m_choiceIndex(other.choiceIndex())
     , m_stats(other.stats())
     , m_usage(other.usage())
+    , m_tools(other.tools())
 {}
 
-void ChatMessage::parseToolCalls(const QJsonValue toolCalls)
-{
-    QJsonArray toolCallsArray = toolCalls.toArray();
-    for (int i = 0; i < toolCallsArray.count(); i++) {
-        if (!toolCallsArray[i].isObject()) {
-            continue;
-        }
-        ToolEntry tool = {};
-        QJsonObject toolObject = toolCallsArray[i].toObject();
-        // Extract type
-        QJsonValue typeValue = toolObject["type"];
-        if (typeValue.isString()) {
-            tool.setToolType(typeValue.toString());
-        }
-        // Extract id
-        QJsonValue idValue = toolObject["id"];
-        if (idValue.isString()) {
-            tool.setToolCallId(idValue.toString());
-        }
-        // Extract function information
-        QJsonValue functionValue = toolObject["function"];
-        if (functionValue.isObject()) {
-            QJsonObject functionObj = functionValue.toObject();
-            // Extract name
-            QJsonValue nameValue = functionObj["name"];
-            if (nameValue.isString()) {
-                tool.setFunctionName(nameValue.toString());
-            }
-            // Extract arguments kv array
-            QJsonValue argumentsValue = functionObj["arguments"];
-            if (argumentsValue.isString()) {
-                tool.setArguments(argumentsValue.toString());
-            }
-        }
-        m_tools.append(tool);
-    }
-
-    foreach (auto t, m_tools) {
-        qDebug("[ChatMessage] Tool to call: %s::%s %s", //
-               qPrintable(t.m_toolType),
-               qPrintable(t.functionName()),
-               qPrintable(t.arguments()));
-    }
-
-    emit toolsChanged();
-}
-
-void ChatMessage::parseMessageContent(const QJsonObject &json)
-{
-    // Initialize default values
-    m_finishReason = QString();
-    m_choiceIndex = 0;
-    m_stats = QJsonObject();
-    m_usage = QJsonObject();
-    m_content = QString();
-    m_role = AssistantRole;
-
-    // Extract message content and role with error handling
-    QJsonValue choicesValue = json["choices"];
-    if (choicesValue.isArray()) {
-        QJsonArray choicesArray = choicesValue.toArray();
-        if (!choicesArray.isEmpty()) {
-            QJsonValue choice = choicesArray.first();
-            if (choice.isObject()) {
-                QJsonObject choiceObj = choice.toObject();
-
-                // Extract finish_reason
-                QJsonValue finishReasonValue = choiceObj["finish_reason"];
-                if (finishReasonValue.isString()) {
-                    m_finishReason = finishReasonValue.toString();
-                }
-
-                // Extract index
-                QJsonValue indexValue = choiceObj["index"];
-                if (indexValue.isDouble()) {
-                    m_choiceIndex = static_cast<int>(indexValue.toDouble());
-                }
-
-                // Extract stats
-                QJsonValue statsValue = json["stats"];
-                if (statsValue.isObject()) {
-                    m_stats = statsValue.toObject();
-                }
-
-                // Extract usage
-                QJsonValue usageValue = json["usage"];
-                if (usageValue.isObject()) {
-                    m_usage = usageValue.toObject();
-                }
-
-                // normale message or tool call item
-                QJsonValue messageValue = choiceObj["message"];
-                if (messageValue.isObject()) {
-                    QJsonObject messageObj = messageValue.toObject();
-
-                    // Extract content with error handling
-                    QJsonValue contentValue = messageObj["content"];
-                    if (contentValue.isString()) {
-                        m_content = contentValue.toString();
-                    } else {
-                        m_content = QString(); // Empty string as default
-                    }
-
-                    // Extract tool_calls
-                    QJsonValue toolCallsValue = messageObj["tool_calls"];
-                    if (toolCallsValue.isArray() && !toolCallsValue.toArray().isEmpty()) {
-                        parseToolCalls(toolCallsValue);
-                    }
-
-                    // Extract role with error handling
-                    QJsonValue roleValue = messageObj["role"];
-                    if (roleValue.isString()) {
-                        QString roleStr = roleValue.toString();
-                        if (roleStr == "assistant") {
-                            m_role = AssistantRole;
-                        } else if (roleStr == "user") {
-                            m_role = UserRole;
-                        } else if (roleStr == "system") {
-                            m_role = SystemRole;
-                        } else {
-                            m_role = AssistantRole; // Default
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-void ChatMessage::parseOtherFields(const QJsonObject &json)
+inline void ChatMessage::parseHeaderFields(const QJsonObject &json)
 {
     // Extract other fields with error handling
     QJsonValue createdValue = json["created"];
-    if (createdValue.isDouble()) {
+    if (!createdValue.isNull() && createdValue.isDouble()) {
         m_created = static_cast<qint64>(createdValue.toDouble());
-    } else if (createdValue.isString()) {
+    } else if (!createdValue.isNull() && createdValue.isString()) {
         bool ok;
         qint64 value = createdValue.toString().toLongLong(&ok);
         if (ok) {
             m_created = value;
-        } else {
-            m_created = 0; // Default value
         }
-    } else {
-        m_created = 0; // Default value
     }
-
     QJsonValue idValue = json["id"];
-    if (idValue.isString()) {
+    if (!idValue.isNull() && idValue.isString()) {
         m_id = idValue.toString();
-    } else {
-        m_id = QString(); // Empty string as default
     }
 
     QJsonValue modelValue = json["model"];
-    if (modelValue.isString()) {
+    if (!modelValue.isNull() && modelValue.isString()) {
         m_model = modelValue.toString();
-    } else {
-        m_model = QString(); // Empty string as default
     }
 
     QJsonValue objectValue = json["object"];
-    if (objectValue.isString()) {
+    if (!objectValue.isNull() && objectValue.isString()) {
         m_object = objectValue.toString();
-    } else {
-        m_object = QString(); // Empty string as default
     }
 
     QJsonValue systemFingerprintValue = json["system_fingerprint"];
-    if (systemFingerprintValue.isString()) {
+    if (!systemFingerprintValue.isNull() && systemFingerprintValue.isString()) {
         m_systemFingerprint = systemFingerprintValue.toString();
-    } else {
-        m_systemFingerprint = QString(); // Empty string as default
     }
 }
 
-QString ChatMessage::content() const
+inline void ChatMessage::parseMessageContent(const QJsonObject &message)
 {
-    return m_content;
+    //qDebug() << "[ChatMessage] parse LLM message object:" << message;
+
+    // Extract stats
+    QJsonValue statsValue = message["stats"];
+    if (!statsValue.isNull() && statsValue.isObject()) {
+        m_stats = statsValue.toObject();
+    }
+
+    // Extract usage
+    QJsonValue usageValue = message["usage"];
+    if (!usageValue.isNull() && usageValue.isObject()) {
+        m_usage = usageValue.toObject();
+    }
+
+    // Extract message content
+    QJsonValue choicesValue = message["choices"];
+    if (!choicesValue.isNull() && choicesValue.isArray()) {
+        QJsonArray choicesArray = choicesValue.toArray();
+        if (!choicesArray.isEmpty()) {
+            for (int i = 0; i < choicesArray.count(); i++) {
+                QJsonValue choice = choicesArray.at(i);
+                if (!choice.isObject()) {
+                    continue;
+                }
+                parseChoiceObject(choice.toObject());
+            }
+            return;
+        }
+    }
+
+    // Try stream line object
+    parseChoiceObject(message);
 }
 
-ChatMessage::Role ChatMessage::role() const
+inline void ChatMessage::parseChoiceObject(const QJsonObject &choice)
 {
-    return m_role;
+    //qDebug() << "[ChatMessage] parse choice object:" << choice;
+
+    // Extract finish_reason
+    QJsonValue finishReasonValue = choice["finish_reason"];
+    if (!finishReasonValue.isNull() && finishReasonValue.isString()) {
+        m_finishReason = finishReasonValue.toString();
+    }
+
+    // Extract index
+    QJsonValue indexValue = choice["index"];
+    if (!indexValue.isNull() && indexValue.isDouble()) {
+        m_choiceIndex = static_cast<int>(indexValue.toDouble());
+    }
+
+    // Extract stream delta object
+    QJsonObject message;
+    QJsonValue delta = choice["delta"];
+    if (!delta.isNull() && delta.isObject()) {
+        // Set message object from delta
+        message["message"] = delta.toObject();
+        parseChoiceObject(message);
+        return;
+    }
+
+    // normale message or tool call item
+    QJsonValue messageValue = choice["message"];
+    if (!messageValue.isNull() && messageValue.isObject()) {
+        QJsonObject messageObj = messageValue.toObject();
+
+        // Extract content with error handling
+        QJsonValue contentValue = messageObj["content"];
+        if (!contentValue.isNull() && contentValue.isString()) {
+            m_content = contentValue.toString();
+        }
+
+        // Extract message role
+        QJsonValue roleValue = messageObj["role"];
+        if (!roleValue.isNull() && roleValue.isString()) {
+            QString roleStr = roleValue.toString();
+            if (roleStr == "assistant") {
+                m_role = AssistantRole;
+            } else if (roleStr == "user") {
+                m_role = UserRole;
+            } else if (roleStr == "system") {
+                m_role = SystemRole;
+            } else {
+                m_role = AssistantRole; // Default
+            }
+        }
+
+        // Extract tool_calls
+        QJsonValue toolCallsValue = messageObj["tool_calls"];
+        if (!toolCallsValue.isNull() && toolCallsValue.isArray()) {
+            QJsonArray tools = toolCallsValue.toArray();
+            if (!tools.isEmpty()) {
+                parseToolCalls(tools);
+            }
+        }
+    }
 }
 
-qint64 ChatMessage::created() const
+inline void ChatMessage::parseToolCalls(const QJsonValue toolCalls)
 {
-    return m_created;
+    QJsonArray toolCallsArray = toolCalls.toArray();
+    for (int i = 0; i < toolCallsArray.count(); i++) {
+        if (!toolCallsArray[i].isObject()) {
+            qWarning("[ChatMessage] parseToolCalls: Object is not an array, skip.");
+            continue;
+        }
+        QJsonObject toolObject = toolCallsArray[i].toObject();
+        m_tools.append(parseToolCall(toolObject));
+    }
 }
 
-QString ChatMessage::id() const
+inline ChatMessage::ToolEntry ChatMessage::parseToolCall(const QJsonObject toolObject) const
 {
-    return m_id;
+    ToolEntry tool = {};
+
+    qDebug() << "[ChatMessage] parseToolCall with:" << toolObject;
+
+    // Extract type
+    QJsonValue typeValue = toolObject["type"];
+    if (!typeValue.isNull() && typeValue.isString()) {
+        tool.setToolType(typeValue.toString());
+    }
+
+    // Extract id
+    QJsonValue idValue = toolObject["id"];
+    if (!idValue.isNull() && idValue.isString()) {
+        tool.setToolCallId(idValue.toString());
+    }
+
+    // Extract function information
+    QJsonValue functionValue = toolObject["function"];
+    if (!functionValue.isNull() && functionValue.isObject()) {
+        QJsonObject functionObj = functionValue.toObject();
+        // Extract name
+        QJsonValue nameValue = functionObj["name"];
+        if (!nameValue.isNull() && nameValue.isString()) {
+            tool.setFunctionName(nameValue.toString());
+        }
+        // Extract arguments (should be a JSON object)
+        QJsonValue argumentsValue = functionObj["arguments"];
+        if (!argumentsValue.isNull() && argumentsValue.isString()) {
+            tool.setArguments(argumentsValue.toString());
+        }
+    }
+
+    return tool;
 }
 
-QString ChatMessage::model() const
+void ChatMessage::mergeToolsFrom(ChatMessage::ToolEntry &tool)
 {
-    return m_model;
+    auto updateTool = [](const ToolEntry &original, const ToolEntry &tool) -> ToolEntry const {
+        ToolEntry t = original;
+        if (!tool.m_toolType.isEmpty()) {
+            t.setToolType(tool.m_toolType);
+        }
+        if (!tool.m_toolCallId.isEmpty()) {
+            t.setToolCallId(tool.m_toolCallId);
+        }
+        if (!tool.m_arguments.isEmpty()) {
+            t.setArguments(tool.m_arguments);
+        }
+        if (!tool.m_functionName.isEmpty()) {
+            t.setFunctionName(tool.m_functionName);
+        }
+        return t;
+    };
+
+    // if from stream and tools are empty, add
+    if (m_tools.count() == 0) {
+        m_tools.append(tool);
+        return;
+    }
+
+    // if from stream and id is empty, updtate first tool
+    if (tool.toolCallId().isEmpty()) {
+        m_tools[0] = updateTool(m_tools[0], tool);
+        return;
+    }
+
+    // if from stream find tool and updtate
+    for (int i = 0; i < m_tools.count(); i++) {
+        if (m_tools[i].toolCallId() == tool.toolCallId()) {
+            m_tools[i] = updateTool(m_tools[i], tool);
+            return;
+        }
+    }
 }
 
-QString ChatMessage::object() const
+void ChatMessage::mergeMessage(ChatMessage *other)
 {
-    return m_object;
+    if (id() != other->id()) {
+        return;
+    }
+    setContent(other->content());
+    setRole(other->role());
+    setCreated(other->created());
+    setModel(other->model());
+    setObject(other->object());
+    setSystemFingerprint(other->systemFingerprint());
+    setFinishReason(other->finishReason());
+    setChoiceIndex(other->choiceIndex());
+    setStats(other->stats());
+    setUsage(other->usage());
+    setTools(other->tools());
 }
 
-QString ChatMessage::systemFingerprint() const
+void ChatMessage::setTools(const QList<ToolEntry> &tools)
 {
-    return m_systemFingerprint;
-}
-
-QString ChatMessage::finishReason() const
-{
-    return m_finishReason;
-}
-
-int ChatMessage::choiceIndex() const
-{
-    return m_choiceIndex;
-}
-
-QJsonObject ChatMessage::stats() const
-{
-    return m_stats;
-}
-
-QJsonObject ChatMessage::usage() const
-{
-    return m_usage;
+    if (!tools.isEmpty()) {
+        foreach (auto tool, tools) {
+            mergeToolsFrom(tool);
+        }
+    }
 }
 
 void ChatMessage::setContent(const QString &content)
 {
-    if (m_content != content) {
+    if (!content.isEmpty() && m_content != content) {
         m_content = content;
-        emit contentChanged();
+    }
+}
+
+void ChatMessage::addContent(const QString &content)
+{
+    if (!content.isEmpty() && !content.isEmpty()) {
+        m_content += content;
     }
 }
 
 void ChatMessage::setRole(Role role)
 {
-    if (m_role != role) {
+    if (role != None && m_role != role) {
         m_role = role;
-        emit roleChanged();
     }
 }
 
@@ -287,47 +333,41 @@ void ChatMessage::setCreated(qint64 created)
 {
     if (m_created != created) {
         m_created = created;
-        emit createdChanged();
     }
 }
 
 void ChatMessage::setId(const QString &id)
 {
-    if (m_id != id) {
+    if (!id.isEmpty() && m_id != id) {
         m_id = id;
-        emit idChanged();
     }
 }
 
 void ChatMessage::setModel(const QString &model)
 {
-    if (m_model != model) {
+    if (!model.isEmpty() && m_model != model) {
         m_model = model;
-        emit modelChanged();
     }
 }
 
 void ChatMessage::setObject(const QString &object)
 {
-    if (m_object != object) {
+    if (!object.isEmpty() && m_object != object) {
         m_object = object;
-        emit objectChanged();
     }
 }
 
 void ChatMessage::setSystemFingerprint(const QString &systemFingerprint)
 {
-    if (m_systemFingerprint != systemFingerprint) {
+    if (!systemFingerprint.isEmpty() && m_systemFingerprint != systemFingerprint) {
         m_systemFingerprint = systemFingerprint;
-        emit systemFingerprintChanged();
     }
 }
 
 void ChatMessage::setFinishReason(const QString &finishReason)
 {
-    if (m_finishReason != finishReason) {
+    if (!finishReason.isEmpty() && m_finishReason != finishReason) {
         m_finishReason = finishReason;
-        emit finishReasonChanged();
     }
 }
 
@@ -335,29 +375,26 @@ void ChatMessage::setChoiceIndex(int choiceIndex)
 {
     if (m_choiceIndex != choiceIndex) {
         m_choiceIndex = choiceIndex;
-        emit choiceIndexChanged();
     }
 }
 
 void ChatMessage::setStats(const QJsonObject &stats)
 {
-    if (m_stats != stats) {
+    if (!stats.isEmpty() && m_stats != stats) {
         m_stats = stats;
-        emit statsChanged();
     }
 }
 
 void ChatMessage::setUsage(const QJsonObject &usage)
 {
-    if (m_usage != usage) {
+    if (!usage.isEmpty() && m_usage != usage) {
         m_usage = usage;
-        emit usageChanged();
     }
 }
 
-const QList<ChatMessage::ToolEntry> &ChatMessage::tools() const
+void ChatMessage::addTools(const QList<ChatMessage::ToolEntry> &tools)
 {
-    return m_tools;
+    m_tools.append(tools);
 }
 
 QJsonObject ChatMessage::toJson() const

@@ -15,6 +15,20 @@
 #include <QTextDocumentFragment>
 #include <QTimer>
 
+class BlockData : public QTextBlockUserData
+{
+public:
+    explicit BlockData(ChatMessage *message)
+        : QTextBlockUserData()
+        , m_message(message)
+    {}
+    inline ChatMessage *message() { return m_message; };
+    inline const QString &messageId() const { return m_message->id(); };
+
+private:
+    ChatMessage *m_message;
+};
+
 #if defined(QT_DEBUG)
 static inline void saveDocument(QTextDocument *document)
 {
@@ -43,19 +57,45 @@ void ChatTextWidget::setSyntaxColorModel(SyntaxColorModel *model)
     m_colorModel = model;
 }
 
-void ChatTextWidget::setMessage(const QString &markdown, bool isSender)
+void ChatTextWidget::removeMessage(ChatMessage *message)
 {
-    if (markdown.isEmpty()) {
-        if (!isSender) { // stop progress
-            emit documentUpdated();
-        }
+    Q_UNUSED(message)
+}
+
+void ChatTextWidget::updateMessage(ChatMessage *message)
+{
+    if (!message || message->content().isEmpty()) {
+        return;
+    }
+    if (m_messages.contains(message->id())) {
         return;
     }
 
-    appendMarkdown(markdown, isSender);
+    appendMarkdown(message);
 
-    // Emit signal when document is updated
-    if (!isSender) {
+    // Emit signal when document is complete
+    if (message->finishReason() == "stop") {
+        emit documentUpdated();
+    }
+
+#if defined(QT_DEBUG)
+    saveDocument(document());
+#endif
+}
+
+void ChatTextWidget::appendMessage(ChatMessage *message)
+{
+    if (!message || message->content().isEmpty()) {
+        return;
+    }
+    if (m_messages.contains(message->id())) {
+        return;
+    }
+
+    appendMarkdown(message);
+
+    // Emit signal when document is complete
+    if (message->finishReason() == "stop") {
         emit documentUpdated();
     }
 
@@ -76,14 +116,23 @@ QString ChatTextWidget::tokensToHtml(const QVector<Token> &tokens, const QString
     return ChatTextTokenizer::tokensToHtml(tokens, language, model);
 }
 
-void ChatTextWidget::appendMarkdown(const QString &markdown, bool isSender)
+void ChatTextWidget::appendMarkdown(ChatMessage *message)
 {
     bool inCode = false;
-    QStringList lines = markdown.split('\n');
+    ChatMessage::Role role = message->role();
+    QStringList fontFamilies = QStringList() << "Menlo" << "Consolas" << "monospace";
     QString codeLang;
     QString codeBuffer;
     QString normalBuffer;
 
+    QString markdown = message->content();
+    if (message->role() == ChatMessage::SystemRole) {
+        markdown = "```system\n" + markdown + "\n```";
+    } else if (markdown.startsWith("[") && markdown.endsWith("]")) {
+        markdown = "```json\n" + markdown + "\n```";
+    }
+
+    QStringList lines = markdown.split('\n');
     QTextCursor cursor = textCursor();
     cursor.movePosition(QTextCursor::End);
 
@@ -95,14 +144,14 @@ void ChatTextWidget::appendMarkdown(const QString &markdown, bool isSender)
         markdownDoc.setMarkdown(normalBuffer, QTextDocument::MarkdownDialectGitHub);
 
         QTextBlockFormat blockFmt;
-        blockFmt.setAlignment(isSender ? Qt::AlignRight : Qt::AlignLeft);
+        blockFmt.setAlignment(role == ChatMessage::ChatRole ? Qt::AlignRight : Qt::AlignLeft);
         blockFmt.setLeftMargin(12);
         blockFmt.setRightMargin(12);
         blockFmt.setTopMargin(8);
         blockFmt.setBottomMargin(8);
 
         QTextCharFormat charFmt;
-        charFmt.setFontFamilies(QStringList() << "monospace");
+        charFmt.setFontFamilies(fontFamilies);
         charFmt.setFontPointSize(18);
         charFmt.setForeground(Qt::white);
 
@@ -152,7 +201,7 @@ void ChatTextWidget::appendMarkdown(const QString &markdown, bool isSender)
 
                 // Create a block format for the code block
                 QTextBlockFormat codeBlockFmt;
-                codeBlockFmt.setAlignment(isSender ? Qt::AlignRight : Qt::AlignLeft);
+                codeBlockFmt.setAlignment(role == ChatMessage::ChatRole ? Qt::AlignRight : Qt::AlignLeft);
                 codeBlockFmt.setLeftMargin(12);
                 codeBlockFmt.setRightMargin(12);
                 codeBlockFmt.setTopMargin(8);
@@ -160,7 +209,7 @@ void ChatTextWidget::appendMarkdown(const QString &markdown, bool isSender)
 
                 // Create character format for the code text
                 QTextCharFormat codeCharFmt;
-                codeCharFmt.setFontFamilies(QStringList() << "monospace");
+                codeCharFmt.setFontFamilies(fontFamilies);
                 codeCharFmt.setFontPointSize(18);
                 codeCharFmt.setForeground(Qt::white);
 
@@ -186,5 +235,6 @@ void ChatTextWidget::appendMarkdown(const QString &markdown, bool isSender)
         flushNormal();
     }
 
+    m_messages.append(message->id());
     verticalScrollBar()->setValue(verticalScrollBar()->maximum());
 }

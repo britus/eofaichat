@@ -1,5 +1,8 @@
 #ifndef LLMCHAT_CLIENT_H
 #define LLMCHAT_CLIENT_H
+#include <chatmessage.h>
+#include <chatmodel.h>
+#include <modellistmodel.h>
 #include <toolmodel.h>
 #include <QDir>
 #include <QFile>
@@ -18,7 +21,7 @@ class LLMChatClient : public QObject
     Q_OBJECT
 
 public:
-    explicit LLMChatClient(QObject *parent = nullptr);
+    explicit LLMChatClient(ToolModel *toolModel, ChatModel *chatModel, QObject *parent = nullptr);
 
     ~LLMChatClient();
 
@@ -39,20 +42,20 @@ public:
     // Model listing
     void listModels();
 
-    ToolModel *toolModel() const;
+    inline ToolModel *toolModel() { return m_toolModel; }
+    inline ChatModel *chatModel() { return m_chatModel; }
+    inline ModelListModel *llmModels() { return m_llmModels; }
+    inline const ModelEntry &activeModel() const { return m_llmModel; }
 
 public slots:
-    void setToolModel(ToolModel *newToolModel);
+    void onToolRequest(const ChatMessage::ToolEntry &tool);
+    void setActiveModel(const ModelEntry &model);
 
 signals:
-    // Success signals
-    void chatCompletionReceived(const QJsonObject &response);
-    void modelListReceived(const QJsonArray &models);
-    void streamingDataReceived(const QString &data);
-
-    // Error signals
     void errorOccurred(const QString &error);
     void networkError(QNetworkReply::NetworkError error, const QString &message);
+    void streamCompleted();
+    void toolCompleted(const ChatMessage::ToolEntry &tool);
 
 private slots:
     void onFinished(QNetworkReply *reply);
@@ -60,17 +63,23 @@ private slots:
     void onSslErrors(QNetworkReply *reply, const QList<QSslError> &errors);
 
 private:
+    ModelEntry m_llmModel;
+    ToolModel *m_toolModel;
+    ChatModel *m_chatModel;
+    ModelListModel *m_llmModels;
     QNetworkAccessManager *m_networkManager;
     QString m_serverUrl;
     QString m_apiKey;
     int m_timeout;
-    ToolModel *m_toolModel;
+    bool m_isResponseStream;
 
 private:
-    void sendRequest(const QJsonObject &requestBody, const QString &endpoint, bool isGetMethod = false);
-    QJsonObject buildChatCompletionRequest(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream);
-    void parseStreamingResponse(QNetworkReply *reply);
-    QJsonArray loadToolsConfig() const;
+    inline void sendRequest(const QJsonObject &requestBody, const QString &endpoint, bool isGetMethod = false);
+    inline QJsonObject buildChatCompletionRequest(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream);
+    inline void parseResponse(const QJsonObject &response);
+    inline void parseResponse(const QByteArray &data);
+    inline QJsonArray loadToolsConfig() const;
+    inline void checkAndRunTooling(ChatMessage *messge);
 };
 
 #endif // LLMCHAT_CLIENT_H

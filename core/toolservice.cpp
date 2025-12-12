@@ -13,279 +13,502 @@ ToolService::ToolService(QObject *parent)
     //
 }
 
-static inline const QJsonObject errorToJsonObject(int code, const QString &message)
+QJsonObject ToolService::execute(const ToolModel *model, const QString &function, const QString &arguments)
 {
-    QJsonObject errorObj;
-    errorObj.insert("code", QJsonValue(code));
-    errorObj.insert("message", QJsonValue(message));
-    return errorObj;
-}
-
-static inline const QByteArray errorToJson(const QJsonObject &error)
-{
-    QJsonDocument doc(error);
-    return doc.toJson(QJsonDocument::Compact);
-}
-
-static inline void listDirectory(const QString &path, const QStringList &extensions, QByteArray &content)
-{
-    QDir dir(path);
-    if (!dir.exists()) {
-        content.append(errorToJson(errorToJsonObject( //
-            -1,
-            QStringLiteral("Directory '%1' does not exist.").arg(path).toUtf8())));
-        return;
+    if (function.isEmpty()) {
+        return createErrorResponse(QStringLiteral("The function name is required."));
     }
-    /*
-  "outputSchema": {
-    "type": "object",
-    "properties": {
-      "files": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "path": {
-              "type": "string",
-              "description": "Absolute path to the file"
-            },
-            "relative_path": {
-              "type": "string",
-              "description": "Relative path from the project directory"
-            },
-            "size": {
-              "type": "integer",
-              "description": "File size in bytes"
-            },
-            "last_modified": {
-              "type": "string",
-              "description": "Last modified date (ISO 8601 format)"
-            }
-          }
-        },
-        "description": "List of found source code files"
-      },
-      "total_files": {
-        "type": "integer",
-        "description": "Total number of files found"
-      },
-      "project_path": {
-        "type": "string",
-        "description": "The project directory used"
-      }
-    },
-
-*/
-    QJsonArray entries;
-    QList<QFileInfo> entryList = dir.entryInfoList();
-    foreach (auto fi, entryList) {
-        QJsonObject entry;
-        entry["path"] = QJsonValue(fi.absoluteFilePath());
-        entry["relative_path"] = QJsonValue(fi.canonicalFilePath());
-        entry["size"] = QJsonValue(fi.size());
-        entry["last_modified"] = QJsonValue(fi.lastModified().toString("dd.MM.yyy hh:mm:ss"));
-        entries.append(entry);
+    if (!model) {
+        return createErrorResponse(QStringLiteral("No tool model is set.").arg(function));
     }
-    QJsonObject files;
-    files["files"] = entries;
-    QJsonDocument doc(files);
-    content.append(doc.toJson(QJsonDocument::Compact));
-}
-
-static inline void readFile(const QString &path, QByteArray &content)
-{
-    if (!QFile::exists(path)) {
-        content.append(errorToJson(errorToJsonObject( //
-            -1,
-            QStringLiteral("Directory '%1' does not exist.").arg(path).toUtf8())));
-        return;
-    }
-    /*
-    "outputSchema": {
-        "type": "object",
-        "description": "object",
-        "properties": {
-            "file_path": {
-                "type": "string",
-                "description": "The path used for the file"
-            },
-            "content": {
-                "type": "string",
-                "description": "The full content of the file"
-            },
-            "encoding": {
-                "type": "string",
-                "description": "Character encoding of the file (e.g. UTF-8)"
-            },
-            "line_count": {
-                "type": "integer",
-                "description": "Number of lines in the file"
-            },
-            "size": {
-                "type": "integer",
-                "description": "File size in bytes"
-            }
-        },
-        "required": ["file_path", "content", "encoding", "line_count", "size"]
-    }
-    */
-    QFile file(path);
-    if (!file.open(QFile::ReadOnly)) {
-        content.append(errorToJson(errorToJsonObject( //
-            -1,
-            QStringLiteral("Can't find file %1").arg(path).toUtf8())));
-        return;
-    }
-
-    QJsonObject result;
-    result["file_path"] = QJsonValue(file.fileName());
-    result["encoding"] = QJsonValue(QStringLiteral("UTF-8"));
-    result["line_count"] = QJsonValue(file.size());
-    result["size"] = QJsonValue(file.size());
-    result["content"] = QJsonValue(QString(file.readAll()));
-    file.close();
-
-    QJsonDocument doc(result);
-    content.append(doc.toJson(QJsonDocument::Compact));
-}
-
-bool ToolService::execute(const ToolModel *model, const QString &function, const QString &arguments)
-{
-    if (!model)
-        return false;
 
     ToolModel::ToolEntry tool = model->toolByName(function);
     if (tool.name.isEmpty()) {
-        QString msg = errorToJson(errorToJsonObject( //
-            -1,
-            QStringLiteral("Unable to find function: %1").arg(function)));
-        emit executeCompleted(msg.toUtf8());
+        return createErrorResponse(QStringLiteral("Unable to find function: %1").arg(function));
+    }
+
+    qDebug().noquote() << "[ToolService] execute type:" << tool.type //
+                       << "name:" << tool.name << "args:" << arguments;
+
+    QJsonObject args;
+    if (!arguments.isEmpty()) {
+        QJsonParseError error;
+        QJsonDocument doc = QJsonDocument::fromJson(arguments.toUtf8(), &error);
+        if (error.error != QJsonParseError::NoError) {
+            return createErrorResponse(tr("[ToolService] JSON error #%1 offset: %2 - %3") //
+                                           .arg(error.error)
+                                           .arg(error.offset)
+                                           .arg(error.errorString()));
+        }
+        args = doc.object();
+    }
+
+    QJsonObject result;
+
+    if (tool.name == "display_project_files" || tool.name == "list_source_files") {
+        QStringList extensions;
+        QString sortBy = "name";
+        bool recursive = true;
+        QString pathName;
+        if (args.contains("project_path") && args["project_path"].isString()) {
+            pathName = args["project_path"].toString();
+        } else if (args.contains("directory") && args["directory"].isString()) {
+            pathName = args["directory"].toString();
+        }
+        if (args.contains("recursive") && args["recursive"].isBool()) {
+            recursive = args["recursive"].toBool();
+        }
+        if (args.contains("sortBy") && args["sortBy"].isString()) {
+            sortBy = args["sortBy"].toString();
+        }
+        if (args.contains("extensions") && args["extensions"].isArray()) {
+            extensions = getFileExtensions(args["extensions"].toArray());
+        }
+        if (extensions.isEmpty()) {
+            extensions = DEFAULT_EXTENSIONS;
+        }
+        if (tool.name == "display_project_files") {
+            result = displayProjectFiles(pathName, recursive, sortBy, extensions);
+        } else if (tool.name == "list_source_files") {
+            result = listSourceFiles(pathName, extensions);
+        }
+    } else if (tool.name == "read_source_file") {
+        QString filePath;
+        if (args.contains("file_path") && args["file_path"].isString()) {
+            filePath = args["file_path"].toString();
+            result = readSourceFile(filePath);
+        } else {
+            result = createErrorResponse(QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(function));
+        }
+    } else if (tool.name == "write_source_file") {
+        QString filePath;
+        if (!args.contains("file_path") || !args["file_path"].isString()) {
+            result = createErrorResponse(QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(function));
+            goto finish;
+        }
+        filePath = args["file_path"].toString();
+
+        QString content;
+        if (!args.contains("content") || !args["content"].isString()) {
+            result = createErrorResponse(QStringLiteral("Parameter 'content' is missing in function: %1").arg(function));
+            goto finish;
+        }
+        content = args["content"].toString();
+
+        bool backup = true;
+        if (!args.contains("content") || !args["content"].isBool()) {
+            backup = true;
+        } else {
+            backup = args["create_backup"].toBool();
+        }
+
+        result = writeSourceFile(filePath, content.toUtf8(), backup);
+    } else {
+        result = tool.tool;
+    }
+
+finish:
+    return result;
+}
+
+QJsonObject ToolService::displayProjectFiles(const QString &projectPath, bool recursive, const QString &sortBy, const QStringList extensions)
+{
+    qDebug().noquote()                                              //
+        << "[ToolService]:displayProjectFiles path:" << projectPath //
+        << "sortBy:" << sortBy << "recusive:" << recursive << "extensions:" << extensions;
+
+    if (projectPath.isEmpty()) {
+        return createErrorResponse("Parameter 'project_path' or 'directory' required");
+    }
+
+    if (!isValidPath(projectPath)) {
+        return createErrorResponse(QString("Invalid project path: %1").arg(projectPath));
+    }
+
+    QList<QFileInfo> fileList = findSourceFiles(projectPath, extensions, recursive);
+
+    if (sortBy == "size") {
+        std::sort(fileList.begin(), fileList.end(), [](const QFileInfo &a, const QFileInfo &b) { //
+            return a.size() < b.size();
+        });
+    } else if (sortBy == "date") {
+        std::sort(fileList.begin(), fileList.end(), [](const QFileInfo &a, const QFileInfo &b) { //
+            return a.lastModified() < b.lastModified();
+        });
+    } else {
+        std::sort(fileList.begin(), fileList.end(), [](const QFileInfo &a, const QFileInfo &b) { //
+            return a.fileName() < b.fileName();
+        });
+    }
+
+    QJsonObject structContent;
+    QJsonArray jsonFiles;
+    QSet<QString> directories;
+    QStringList textLines;
+    qint64 iTotalSize = 0;
+
+    auto toTextLine = [](const QFileInfo &fileInfo, const QString &strBaseDir) -> QString { //
+        QString filePath = fileInfo.absoluteFilePath();
+        QString relativePath = ".";
+
+        if (!strBaseDir.isEmpty()) {
+            QDir baseDir(strBaseDir);
+            relativePath = baseDir.relativeFilePath(fileInfo.absoluteFilePath());
+        }
+
+        QString size = QString::number(static_cast<int>(fileInfo.size()));
+        QString lastModified = fileInfo.lastModified().toString(Qt::ISODate);
+        QString directory = fileInfo.absolutePath();
+
+        return QStringLiteral("%1|%2|%3|%4|%5").arg(filePath, size, lastModified, directory, relativePath);
+    };
+
+    foreach (const QFileInfo &fileInfo, fileList) {
+        jsonFiles.append(fileInfoToJson(fileInfo, projectPath));
+        textLines.append(toTextLine(fileInfo, projectPath));
+        directories.insert(fileInfo.path());
+        iTotalSize += fileInfo.size();
+    }
+    structContent["files"] = jsonFiles;
+
+    QJsonObject jsonSummary;
+    jsonSummary["project_path"] = projectPath;
+    jsonSummary["total_files"] = static_cast<int>(fileList.size());
+    jsonSummary["total_size"] = static_cast<int>(iTotalSize);
+    jsonSummary["directories"] = static_cast<int>(directories.size());
+    structContent["summary"] = jsonSummary;
+
+    // result
+    auto timestamp = QDateTime::currentDateTime().toString(Qt::ISODate) + "Z";
+
+    QJsonDocument doc = QJsonDocument(jsonFiles);
+    QJsonArray resultText = QJsonArray({QJsonObject({
+        QPair<QString, QString>("type", "text"), //
+        QPair<QString, QString>("text", doc.toJson(QJsonDocument::Compact) /*textLines.join("\n")*/),
+    })});
+
+    QJsonObject response = QJsonObject({
+        QPair<QString, QJsonValue>("structuredContent", structContent),
+        QPair<QString, QJsonValue>("content", QJsonArray({resultText})),
+    });
+
+    return response;
+}
+
+QJsonObject ToolService::listSourceFiles(const QString &projectPath, const QStringList &extensions)
+{
+    qDebug().noquote()                            //
+        << "[ToolService]:listSourceFiles: path:" //
+        << projectPath << "extensions:" << extensions;
+
+    if (projectPath.isEmpty()) {
+        return createErrorResponse("Parameter 'project_path' or 'directory' required");
+    }
+
+    if (!isValidPath(projectPath)) {
+        return createErrorResponse(QString("Invalid project path: %1").arg(projectPath));
+    }
+
+    QList<QFileInfo> fileList = findSourceFiles(projectPath, extensions, true);
+
+    QJsonObject jsonResponse;
+    QJsonArray jsonFiles;
+
+    foreach (const QFileInfo &fileInfo, fileList) {
+        jsonFiles.append(fileInfoToJson(fileInfo, projectPath));
+    }
+
+    // result
+    auto timestamp = QDateTime::currentDateTime().toString(Qt::ISODate) + "Z";
+    QJsonObject structContent = QJsonObject({
+        QPair<QString, QJsonValue>("files", jsonFiles),
+        QPair<QString, QJsonValue>("total_files", QJsonValue(static_cast<int>(fileList.size()))),
+        QPair<QString, QJsonValue>("project_path", QJsonValue(projectPath)),
+    });
+
+    QJsonDocument doc = QJsonDocument(structContent);
+    QJsonObject textResult = QJsonObject({
+        QPair<QString, QString>("type", "text"), //
+        QPair<QString, QString>("text", doc.toJson()),
+    });
+
+    QJsonObject response = QJsonObject({
+        QPair<QString, QJsonValue>("structuredContent", structContent),
+        QPair<QString, QJsonValue>("content", QJsonArray({textResult})),
+    });
+
+    return response;
+}
+
+QJsonObject ToolService::readSourceFile(const QString &filePath, qsizetype length, qsizetype offset)
+{
+    qDebug() << "[ToolService]:readSourceFile: file:" << filePath;
+    qDebug() << "[ToolService]:readSourceFile: offset:" << offset;
+    qDebug() << "[ToolService]:readSourceFile: length:" << length;
+
+    if (filePath.isEmpty()) {
+        return createErrorResponse("Parameter 'file_path' required");
+    }
+
+    if (!isValidPath(filePath)) {
+        return createErrorResponse(QString("Invalid file path: %1").arg(filePath));
+    }
+
+    QFile file(filePath);
+
+    if (!file.exists()) {
+        return createErrorResponse(QString("File not found: %1").arg(file.fileName()));
+    }
+
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return createErrorResponse(QString("File could not be opened: %1").arg(file.fileName()));
+    }
+
+    QByteArray byteContent = file.readAll();
+    file.close();
+
+    QString strContent;
+    if (length <= 0) {
+        strContent = QString::fromUtf8(byteContent);
+    } else if (offset <= 0) {
+        strContent = QString::fromUtf8(byteContent).left(length);
+    } else {
+        strContent = QString::fromUtf8(byteContent).mid(offset, length);
+    }
+
+    int iLineCount = strContent.count('\n') + (strContent.isEmpty() ? 0 : 1);
+
+    QJsonObject structContent;
+    structContent["file_path"] = file.fileName();
+    structContent["content"] = strContent;
+    structContent["encoding"] = "UTF-8";
+    structContent["line_count"] = iLineCount;
+    structContent["size"] = static_cast<int>(byteContent.size());
+
+    // result
+    //auto timestamp = QDateTime::currentDateTime().toString(Qt::ISODate) + "Z";
+
+    QJsonDocument doc = QJsonDocument(structContent);
+    QJsonObject textResult = QJsonObject({
+        QPair<QString, QString>("type", "text"),       //
+        QPair<QString, QString>("text", doc.toJson()), //
+    });
+
+    QJsonObject response = {
+        QPair<QString, QJsonValue>("structuredContent", structContent),
+        QPair<QString, QJsonValue>("content", QJsonArray({textResult})),
+    };
+
+    return response;
+}
+
+QJsonObject ToolService::writeSourceFile(const QString &filePath, const QByteArray &content, bool createBackup)
+{
+    qDebug().noquote()                               //
+        << "[ToolService]:writeSourceFile filePath:" //
+        << filePath << "backup:" << createBackup;
+
+    if (filePath.isEmpty()) {
+        return createErrorResponse("Parameter 'filePath' required");
+    }
+    if (content.isEmpty()) {
+        return createErrorResponse("Parameter 'content' required");
+    }
+
+    if (!isValidPath(filePath)) {
+        return createErrorResponse(QString("Invalid file path: %1").arg(filePath));
+    }
+    if (content.isEmpty()) {
+        return createErrorResponse(QString("No content in file: %1").arg(filePath));
+    }
+
+    QFileInfo fi(filePath);
+    QDir tdir(fi.path());
+    if (!tdir.exists()) {
+        QFile::Permissions permissions;
+        permissions.setFlag(QFile::Permission::ReadOwner, true);
+        permissions.setFlag(QFile::Permission::ReadGroup, true);
+        permissions.setFlag(QFile::Permission::WriteOwner, true);
+        permissions.setFlag(QFile::Permission::WriteGroup, true);
+        permissions.setFlag(QFile::Permission::ExeOwner, true);
+        permissions.setFlag(QFile::Permission::ExeGroup, true);
+        if (!tdir.mkpath(fi.path(), permissions)) {
+            return createErrorResponse(QString("Unable to create directory: %1").arg(fi.path()));
+        }
+    }
+
+    QJsonObject result;
+    result["file_path"] = filePath;
+    result["success"] = false;
+
+    QString backupPath;
+    if (createBackup && QFile::exists(filePath)) {
+        backupPath = createBackupPath(filePath);
+        if (!backupPath.isEmpty()) {
+            result["backup_path"] = backupPath;
+        }
+    }
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        result["message"] = QString("Error: File could not be written - %1").arg(file.errorString());
+        return result;
+    }
+
+    QByteArray byteContent = content;
+    qint64 bytesWritten = file.write(byteContent);
+    file.close();
+
+    if (bytesWritten == -1) {
+        result["message"] = "Error writing the file";
+        return result;
+    }
+
+    result["success"] = true;
+    result["bytes_written"] = static_cast<int>(bytesWritten);
+    result["message"] = QString("File successfully saved - %1 Bytes written").arg(bytesWritten);
+
+    // result
+    auto timestamp = QDateTime::currentDateTime().toString(Qt::ISODate) + "Z";
+
+    QJsonDocument doc = QJsonDocument(result);
+    QJsonArray resp_content = QJsonArray({QJsonObject({
+        QPair<QString, QString>("type", "text"), //
+        QPair<QString, QString>("text", doc.toJson()),
+    })});
+
+    QJsonObject response = QJsonObject({
+        QPair<QString, QJsonValue>("structuredContent", result),
+        QPair<QString, QJsonValue>("content", resp_content),
+    });
+
+    return response;
+}
+
+// ---------------------------------------------------------
+// Private stuff
+// ---------------------------------------------------------
+
+QList<QFileInfo> ToolService::findSourceFiles(const QString &strPath, const QStringList &extensions, bool bRecursive)
+{
+    QList<QFileInfo> fileList;
+    QDir dir(strPath);
+
+    if (!dir.exists()) {
+        return fileList;
+    }
+
+    QDir::Filters filters = QDir::Files | QDir::Readable;
+    if (bRecursive) {
+        filters |= QDir::AllDirs;
+    }
+    dir.setFilter(filters);
+
+    QStringList extList;
+    if (extensions.isEmpty()) {
+        extList = DEFAULT_EXTENSIONS;
+    } else {
+        extList = extensions;
+    }
+
+    QFileInfoList dirList = dir.entryInfoList();
+    foreach (const QFileInfo &fileInfo, dirList) {
+        if (fileInfo.isDir()) {
+            if (bRecursive                           //
+                && fileInfo.fileName() != "."        //
+                && fileInfo.fileName() != ".."       //
+                && fileInfo.fileName() != "build"    // QT/CMAKE build directory
+                && fileInfo.fileName() != "bin"      // Java binaries
+                && fileInfo.fileName() != "classes") // Java binaries
+            {
+                fileList.append(findSourceFiles(fileInfo.filePath(), extList, bRecursive));
+            }
+        } else {
+            foreach (const QString &strExt, extList) {
+                if (fileInfo.suffix() == strExt.mid(1)) {
+                    fileList.append(fileInfo);
+                    break;
+                }
+            }
+        }
+    }
+
+    return fileList;
+}
+
+bool ToolService::isValidPath(const QString &strPath)
+{
+    if (strPath.isEmpty()) {
         return false;
     }
 
-    qDebug() << "[ToolService] execute:" << tool.type << tool.name << arguments;
+    QFileInfo fileInfo(strPath);
+    QString strAbsPath = fileInfo.absoluteFilePath();
 
-    if (tool.name == "display_project_files") {
-        if (tool.option == ToolModel::AskBeforeRun) {
-        }
-        QJsonParseError error;
-        QJsonDocument doc = QJsonDocument::fromJson(arguments.toUtf8(), &error);
-        if (error.error != QJsonParseError::NoError) {
-            QString msg = errorToJson(errorToJsonObject(-1, error.errorString()));
-            emit executeCompleted(error.errorString().toUtf8());
-            return false;
-        }
-        QString pathName;
-        QJsonObject args = doc.object();
-        if (args.contains("directory")) {
-            pathName = args["directory"].toString();
-        } else if (args.contains("project_path")) {
-            pathName = args["project_path"].toString();
-        }
-        if (pathName.isEmpty()) {
-            QString msg = errorToJson(errorToJsonObject( //
-                -1,
-                QStringLiteral("Please specify a directory name and file extensions to use to list project files.")));
-            emit executeCompleted(msg.toUtf8());
-            return false;
-        }
-        QStringList extensions;
-        if (args.contains("extensions") && args["directory"].isArray()) {
-            QJsonArray jext = args["directory"].toArray();
-            foreach (auto item, jext) {
-                if (item.isString()) {
-                    extensions.append(item.toString(""));
-                }
-            }
-        }
-        QByteArray content;
-        listDirectory(pathName, extensions, content);
-        emit executeCompleted(content);
-    } else if (tool.name == "list_source_files") {
-        if (tool.option == ToolModel::AskBeforeRun) {
-        }
-        QJsonParseError error;
-        QJsonDocument doc = QJsonDocument::fromJson(arguments.toUtf8(), &error);
-        if (error.error != QJsonParseError::NoError) {
-            QString msg = errorToJson(errorToJsonObject(-1, error.errorString()));
-            emit executeCompleted(msg.toUtf8());
-            return false;
-        }
-        QString pathName;
-        QJsonObject args = doc.object();
-        if (args.contains("directory")) {
-            pathName = args["directory"].toString();
-        } else if (args.contains("project_path")) {
-            pathName = args["project_path"].toString();
-        }
-        if (pathName.isEmpty()) {
-            QString msg = errorToJson(errorToJsonObject( //
-                -1,
-                QStringLiteral("Please specify a directory name and file extensions to use to list project files.")));
-            emit executeCompleted(msg.toUtf8());
-            return false;
-        }
-        QStringList extensions;
-        if (args.contains("extensions") && args["directory"].isArray()) {
-            QJsonArray jext = args["directory"].toArray();
-            foreach (auto item, jext) {
-                if (item.isString()) {
-                    extensions.append(item.toString(""));
-                }
-            }
-        }
-        QByteArray content;
-        listDirectory(pathName, extensions, content);
-        emit executeCompleted(content);
-        return true;
-    } else if (tool.name == "read_source_file") {
-        if (tool.option == ToolModel::AskBeforeRun) {
-        }
-        QJsonParseError error;
-        QJsonDocument doc = QJsonDocument::fromJson(arguments.toUtf8(), &error);
-        if (error.error != QJsonParseError::NoError) {
-            qWarning() << error.errorString();
-            emit executeCompleted(error.errorString().toUtf8());
-            return false;
-        }
-        QString pathName;
-        QJsonObject args = doc.object();
-        if (args.contains("file")) {
-            pathName = args["file"].toString();
-        } else if (args.contains("file_name")) {
-            pathName = args["file_name"].toString();
-        } else if (args.contains("file_path")) {
-            pathName = args["file_path"].toString();
-        }
-        if (pathName.isEmpty()) {
-            QString msg = errorToJson(errorToJsonObject( //
-                -1,
-                QStringLiteral("Please specify a file name and file extensions to use to list project files.")));
-            emit executeCompleted(msg.toUtf8());
-            return false;
-        }
-        QByteArray content;
-        readFile(pathName, content);
-        emit executeCompleted(content);
-        return true;
-    } else if (tool.name == "write_source_file") {
-        if (tool.option == ToolModel::AskBeforeRun) {
-        }
-        //--
-        QString msg = errorToJson(errorToJsonObject( //
-            -1,
-            QStringLiteral("Tool call of write_source_file complete.")));
-        emit executeCompleted(msg.toUtf8());
-        return true;
-    } else {
-        qWarning() << "[ToolService] execute: (FALLBACK) Using tool object of:" << tool.name;
-        QJsonDocument doc(tool.tool);
-        QByteArray content = doc.toJson(QJsonDocument::Indented);
-        if (!arguments.isEmpty()) {
-            content.append("\r\n");
-            content.append(arguments.toUtf8());
-        }
-        emit executeCompleted(content);
+    return !strAbsPath.isEmpty();
+}
+
+QString ToolService::createBackupPath(const QString &strOriginalPath)
+{
+    QFileInfo fileInfo(strOriginalPath);
+    QString strBackupDir = fileInfo.absolutePath();
+    QString strBackupName = "_backup_"                                                 //
+                            + QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss") //
+                            + "_" + fileInfo.baseName() + "."                          //
+                            + fileInfo.suffix() + ".txt";
+    QString strBackupPath = strBackupDir + "/" + strBackupName;
+
+    if (QFile::copy(strOriginalPath, strBackupPath)) {
+        return strBackupPath;
     }
-    return false;
+
+    return QString();
+}
+
+QJsonObject ToolService::fileInfoToJson(const QFileInfo &fileInfo, const QString &strBaseDir)
+{
+    QJsonObject jsonFileInfo;
+    jsonFileInfo["path"] = fileInfo.absoluteFilePath();
+
+    if (!strBaseDir.isEmpty()) {
+        QDir baseDir(strBaseDir);
+        jsonFileInfo["relative_path"] = baseDir.relativeFilePath(fileInfo.absoluteFilePath());
+    }
+
+    jsonFileInfo["size"] = static_cast<int>(fileInfo.size());
+    jsonFileInfo["last_modified"] = fileInfo.lastModified().toString(Qt::ISODate);
+    jsonFileInfo["directory"] = fileInfo.absolutePath();
+
+    return jsonFileInfo;
+}
+
+QStringList ToolService::getFileExtensions(const QJsonArray &jsonArray)
+{
+    QStringList extensions;
+
+    if (!jsonArray.isEmpty()) {
+        for (const QJsonValue &value : jsonArray) {
+            if (value.isString()) {
+                QString strExt = value.toString();
+                if (!strExt.startsWith(".")) {
+                    strExt = "." + strExt;
+                }
+                extensions.append(strExt);
+            }
+        }
+    } else {
+        foreach (const auto &ext, DEFAULT_EXTENSIONS) {
+            extensions.append(ext);
+        }
+    }
+
+    return extensions;
+}
+
+QJsonObject ToolService::createErrorResponse(const QString &strErrorMsg)
+{
+    QJsonObject jsonError;
+    jsonError["success"] = false;
+    jsonError["error"] = strErrorMsg;
+    return jsonError;
 }

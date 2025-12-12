@@ -22,23 +22,21 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     // Custom methods
+    void clear();
     void addMessage(const ChatMessage &message);
     void addMessageFromJson(const QJsonObject &json);
-    void clear();
-    ChatMessage *messageAt(int index) const;
     void removeMessage(int index);
+
+    ChatMessage *messageAt(int index) const;
+    ChatMessage *messageById(const QString &id);
 
 signals:
     void messageAdded(ChatMessage *message);
     void messageRemoved(int index);
     void messageChanged(int index, ChatMessage *message);
-    void toolingRequest(ChatMessage *message);
 
 private:
     QList<ChatMessage *> m_messages;
-
-private:
-    bool isToolingResponse(ChatMessage *message);
 };
 
 #endif // CHATMODEL_H

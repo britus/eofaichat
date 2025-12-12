@@ -17,6 +17,31 @@ int ToolModel::rowCount(const QModelIndex &parent) const
     return m_toolEntries.count();
 }
 
+bool ToolModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
+    if (!index.isValid() || index.row() >= m_toolEntries.size())
+        return false;
+
+    beginResetModel();
+    ToolEntry &entry = m_toolEntries[index.row()];
+    switch (role) {
+        case Qt::UserRole:
+            entry = value.value<ToolEntry>();
+        case ToolRole:
+            entry.tool = value.value<QJsonObject>();
+        case NameRole:
+            entry.name = value.value<QString>();
+        case OptionRole:
+            entry.option = value.value<ToolOption>();
+        case TypeRole:
+            entry.type = value.value<ToolType>();
+        default:
+            return false;
+    }
+    m_toolEntries[index.row()] = entry;
+    endResetModel();
+}
+
 QVariant ToolModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid() || index.row() >= m_toolEntries.size())
@@ -25,6 +50,8 @@ QVariant ToolModel::data(const QModelIndex &index, int role) const
     const ToolEntry &entry = m_toolEntries[index.row()];
 
     switch (role) {
+        case Qt::UserRole:
+            return QVariant::fromValue(entry);
         case ToolRole:
             return entry.tool;
         case NameRole:
@@ -53,16 +80,21 @@ void ToolModel::loadFromDirectory(const QFileInfo &fileInfo, ToolType type)
     QFile file(fileInfo.absoluteFilePath());
     if (file.open(QIODevice::ReadOnly)) {
         QFileInfo fi(file.fileName());
-        QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+        QJsonParseError error;
+        QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &error);
         if (!doc.isNull() && doc.isObject()) {
             QJsonObject jsonObject = doc.object();
             ToolEntry entry;
             entry.tool = jsonObject;
             entry.name = fi.baseName();
-            entry.option = AskBeforeRun; // Default value
+            entry.option = ToolDisabled; // Default value
             entry.type = type;
 
             addToolEntry(entry);
+        } else {
+            qWarning().noquote() << "[ToolModel] loadFromDirectory:" //
+                                 << error.errorString()              //
+                                 << "Invalid JSON file:" << file.fileName();
         }
         file.close();
     }

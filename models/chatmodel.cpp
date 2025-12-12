@@ -95,46 +95,6 @@ QHash<int, QByteArray> ChatModel::roleNames() const
     return roles;
 }
 
-void ChatModel::addMessage(const ChatMessage &message)
-{
-    beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
-    ChatMessage *newMessage = new ChatMessage(message);
-    m_messages.append(newMessage);
-    endInsertRows();
-
-    emit messageAdded(newMessage);
-}
-
-void ChatModel::addMessageFromJson(const QJsonObject &json)
-{
-    beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
-    ChatMessage *newMessage = new ChatMessage(json, this);
-    // ToolService: execute tool through MCP or SDIO or onboard
-    if (isToolingResponse(newMessage)) {
-        emit toolingRequest(newMessage);
-    }
-    m_messages.append(newMessage);
-    endInsertRows();
-
-    emit messageAdded(newMessage);
-}
-
-bool ChatModel::isToolingResponse(ChatMessage *message)
-{
-    // skip or chat message has first prio
-    if (!message || !message->content().isEmpty()) {
-        return false;
-    }
-    // tooling may have "resource" and "prompt" too?
-    foreach (auto tool, message->tools()) {
-        if (tool.toolType() == ChatMessage::ToolType::Function //
-            || tool.toolType() == ChatMessage::ToolType::Tool) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void ChatModel::clear()
 {
     if (m_messages.isEmpty())
@@ -144,6 +104,32 @@ void ChatModel::clear()
     qDeleteAll(m_messages);
     m_messages.clear();
     endResetModel();
+}
+
+void ChatModel::addMessage(const ChatMessage &message)
+{
+    ChatMessage *cm = new ChatMessage(message);
+
+    beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
+    m_messages.append(cm);
+    endInsertRows();
+
+    emit messageAdded(cm);
+}
+
+void ChatModel::addMessageFromJson(const QJsonObject &json)
+{
+    addMessage(ChatMessage(json, this));
+}
+
+ChatMessage *ChatModel::messageById(const QString &id)
+{
+    foreach (ChatMessage *message, m_messages) {
+        if (message->id() == id) {
+            return message;
+        }
+    }
+    return nullptr;
 }
 
 ChatMessage *ChatModel::messageAt(int index) const

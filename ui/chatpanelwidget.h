@@ -10,7 +10,6 @@
 #include <progresspopup.h>
 #include <syntaxcolormodel.h>
 #include <toolmodel.h>
-#include <toolservice.h>
 #include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -39,6 +38,9 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
 
+private slots:
+    void onUpdateChatText(int index, ChatMessage *message, bool removed = false);
+
 private:
     QVBoxLayout *messagesLayout;
     QWidget *messagesContainer;
@@ -47,7 +49,6 @@ private:
     QTextEdit *messageInput;
 
     LLMChatClient *llmclient;
-    ModelListModel *llmModels;
     ChatModel *chatModel;
 
     // list messages with their own bubble widget
@@ -57,9 +58,6 @@ private:
 #endif
     // Syntax color model used by all ChatTextWidget instances
     SyntaxColorModel *syntaxModel;
-
-    // Selected model entry
-    ModelEntry selectedModelEntry;
 
     QString lastDirectory;
     QMainWindow *toolsWindow;
@@ -73,7 +71,6 @@ private:
 
     // LLM Tooling
     ToolModel *toolModel;
-    ToolService *toolService;
 
 private:
     inline void createChatArea(QVBoxLayout *);
@@ -84,7 +81,6 @@ private:
     inline void createToolsButton(QHBoxLayout *);
     inline void createSendButton(QHBoxLayout *);
     inline void connectLLMClient();
-    inline void connectToolService();
     inline void connectChatModel();
     // Show/hide progress popup methods
     inline void showProgressPopup();

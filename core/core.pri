@@ -3,7 +3,6 @@ INCLUDEPATH += $$PWD/
 
 HEADERS += \
     $$PWD/downloadmanager.h \
-    $$PWD/httpclient.h \
     $$PWD/llmchatclient.h \
     $$PWD/toolservice.h
 

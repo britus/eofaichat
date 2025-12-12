@@ -38,14 +38,14 @@
 
 ChatPanelWidget::ChatPanelWidget(QWidget *parent)
     : QWidget(parent)
-    , llmclient(new LLMChatClient(this))
-    , llmModels(new ModelListModel(this))
     , chatModel(new ChatModel(this))
     , syntaxModel(new SyntaxColorModel(this))
     , fileListModel(new FileListModel(this))
     , toolModel(new ToolModel(this))
-    , toolService(new ToolService(this))
 {
+    llmclient = new LLMChatClient(toolModel, chatModel, this);
+
+    // fixed layout height
     setMinimumHeight(640);
 
     // create extension to language mapping once
@@ -86,9 +86,6 @@ ChatPanelWidget::ChatPanelWidget(QWidget *parent)
     // Connect chat message model events
     connectChatModel();
 
-    // Connect tool service model events
-    connectToolService();
-
     // Connect LLM client events
     connectLLMClient();
 
@@ -102,84 +99,33 @@ ChatPanelWidget::ChatPanelWidget(QWidget *parent)
 
 // ==================================================
 
-inline void ChatPanelWidget::connectToolService()
+void ChatPanelWidget::onUpdateChatText(int index, ChatMessage *message, bool removed)
 {
-    //--
-    connect(toolService, &ToolService::executeCompleted, this, [this](const QByteArray &content) {
-        QString llmodel = selectedModelEntry.id;
-#if 0
-        // Add sender bubble using ChatTextWidget
-        ChatMessage cm;
-        cm.setContent(content);
-        cm.setRole(ChatMessage::Role::ChatRole);
-        cm.setId(QStringLiteral("CS-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
-        cm.setSystemFingerprint(cm.id());
-        cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
-        cm.setModel(llmodel);
-        chatModel->addMessage(cm);
-#endif
-        // Emit or send JSON for network layer
-        llmclient->sendChat(llmodel, content);
+    qDebug().noquote() << "[ChatPanelWidget] onUpdateChatText index:" << index //
+                       << "id:" << message->id() << "removed:" << removed;
+
+    // ensure UI thread
+    QTimer::singleShot(10, this, [index, message, removed, this]() {
+        if (removed) {
+            chatWidget->removeMessage(message);
+        } else if (index < 0) {
+            chatWidget->appendMessage(message);
+        } else {
+            chatWidget->updateMessage(message);
+        }
     });
 }
 
 inline void ChatPanelWidget::connectChatModel()
 {
-    connect(chatModel, &ChatModel::messageAdded, this, [this](ChatMessage *message) {
-        qDebug().noquote() << "[CHATWIDGET] messageAdded message:" << message->id();
-        // ensure UI thread
-        QTimer::singleShot(10, this, [message, this]() {
-            QString content = message->content();
-            if (content.startsWith("[") && content.endsWith("]")) {
-                content = "```json" + content + "```";
-            }
-#if 0
-            ChatTextWidget *chatWidget = new ChatTextWidget(chatWidgetContainer, syntaxModel);
-            connect(chatWidget, &ChatTextWidget::documentUpdated, this, [this]() { hideProgressPopup(); });
-            m_messages[message] = chatWidget; // hold for modify, delete etc.
-            // Create a horizontal layout to control alignment
-            if (message->role() == ChatMessage::ChatRole) {
-                // Right-align Chat role messages
-                QHBoxLayout *widgetLayout = new QHBoxLayout();
-                widgetLayout->setContentsMargins(0, 0, 0, 0);
-                widgetLayout->addStretch();
-                widgetLayout->addWidget(chatWidget);
-                // Add the layout to the container using addLayout
-                static_cast<QVBoxLayout *>(chatWidgetContainer->layout())->addLayout(widgetLayout);
-            } else {
-                // Full width for other roles
-                static_cast<QVBoxLayout *>(chatWidgetContainer->layout())->addWidget(chatWidget);
-            }
-#endif
-            chatWidget->setMessage(message->content(), message->role() == ChatMessage::ChatRole);
-        });
+    connect(chatModel, &ChatModel::messageAdded, this, [this](ChatMessage *message) { //
+        onUpdateChatText(-1, message);
     });
-    connect(chatModel, &ChatModel::messageRemoved, this, [](int index) { //
-        qDebug().noquote() << "[CHATWIDGET] messageRemoved row:" << index;
+    connect(chatModel, &ChatModel::messageChanged, this, [this](int index, ChatMessage *message) { //
+        onUpdateChatText(index, message);
     });
-    connect(chatModel, &ChatModel::messageChanged, this, [](int index, ChatMessage *message) { //
-        qDebug().noquote() << "[CHATWIDGET] messageChanged row:" << index << message->id();
-    });
-    connect(chatModel, &ChatModel::toolingRequest, this, [this](ChatMessage *message) { //
-        qDebug().noquote() << "[CHATWIDGET] toolingRequest messageId:" << message->id();
-        if (message->tools().isEmpty()) {
-            return;
-        }
-        foreach (ChatMessage::ToolEntry tool, message->tools()) {
-            switch (tool.toolType()) {
-                case ChatMessage::ToolType::Tool:
-                case ChatMessage::ToolType::Function: {
-                    toolService->execute(toolModel, tool.functionName(), tool.arguments());
-                    break;
-                }
-                case ChatMessage::ToolType::Resuource: {
-                    break;
-                }
-                case ChatMessage::ToolType::Prompt: {
-                    break;
-                }
-            }
-        }
+    connect(chatModel, &ChatModel::messageRemoved, this, [this](int index) { //
+        onUpdateChatText(index, chatModel->messageAt(index), true);
     });
 }
 
@@ -254,8 +200,7 @@ inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
             return;
         QVariant data = comboBox->itemData(index);
         if (data.canConvert<ModelEntry>()) {
-            selectedModelEntry = data.value<ModelEntry>();
-            qDebug() << "Selected model:" << selectedModelEntry.id;
+            llmclient->setActiveModel(data.value<ModelEntry>());
         }
     });
 
@@ -265,24 +210,25 @@ inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
     mainLayout->addWidget(modelWidget);
 
     // Connect LLM list model
-    connect(llmModels, &ModelListModel::modelsLoaded, this, [this, comboBox]() {
-        const QList<ModelEntry> &models = llmModels->modelList();
-
-        // Fill Model selection QComboBox
-        comboBox->clear();
-        for (const ModelEntry &entry : models) {
-            comboBox->addItem(entry.id, QVariant::fromValue(entry));
-        }
-
-        // Select first model by default
-        if (comboBox->count() > 0) {
-            comboBox->setCurrentIndex(0);
-            // Save selected model entry
-            QVariant data = comboBox->itemData(0);
-            if (data.canConvert<ModelEntry>()) {
-                selectedModelEntry = data.value<ModelEntry>();
+    connect(llmclient->llmModels(), &ModelListModel::modelsLoaded, this, [this, comboBox]() {
+        QTimer::singleShot(10, this, [this, comboBox]() {
+            const QList<ModelEntry> &models = llmclient->llmModels()->modelList();
+            // Fill Model selection QComboBox
+            comboBox->clear();
+            for (const ModelEntry &entry : models) {
+                comboBox->addItem(entry.id, QVariant::fromValue(entry));
             }
-        }
+            // Select first model by default
+            if (comboBox->count() > 0) {
+                comboBox->setCurrentIndex(0);
+                // Save selected model entry
+                QVariant data = comboBox->itemData(0);
+                if (data.canConvert<ModelEntry>()) {
+                    llmclient->setActiveModel(data.value<ModelEntry>());
+                }
+            }
+            hideProgressPopup();
+        });
     });
 }
 
@@ -333,8 +279,6 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
     buttonLayout->addWidget(toolsButton);
 
     connect(toolsButton, &QPushButton::clicked, this, [this]() {
-        qDebug() << "Tools action triggered";
-
         // Create a new window for the tools
         if (toolsWindow == nullptr) {
             toolsWindow = new QMainWindow(this->window());
@@ -348,7 +292,6 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
             // Set the ToolsWidget as the central widget of the window
             toolsWindow->setCentralWidget(toolsWidget);
         }
-
         // Show the window
         toolsWindow->setWindowState(Qt::WindowState::WindowActive);
         toolsWindow->show();
@@ -378,7 +321,6 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
     buttonLayout->addWidget(sendButton);
 
     connect(sendButton, &QPushButton::clicked, this, [this]() {
-        QString llmodel = selectedModelEntry.id;
         QString text = messageInput->toPlainText().trimmed();
         if (text.isEmpty())
             return;
@@ -393,13 +335,13 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
         }
 
         // Add sender bubble using ChatTextWidget
-        ChatMessage cm;
+        ChatMessage cm(llmclient);
         cm.setContent(text);
         cm.setRole(ChatMessage::Role::ChatRole);
-        cm.setId(QStringLiteral("CS-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+        cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
         cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
-        cm.setModel(llmodel);
+        cm.setModel(llmclient->activeModel().id);
         chatModel->addMessage(cm);
 
         // Clear input
@@ -409,53 +351,51 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
         // Show progress popup
         showProgressPopup();
 
-        // Emit or send JSON for network layer
-        llmclient->sendChat(llmodel, text);
+        // Send JSON for network layer
+        llmclient->sendChat(cm.model(), text);
     });
 }
 
 inline void ChatPanelWidget::connectLLMClient()
 {
-    // link tool model to LLM communication client
-    llmclient->setToolModel(toolModel);
-
-    connect(llmclient, &LLMChatClient::modelListReceived, this, [this](const QJsonArray &models) { //
-        llmModels->loadFrom(models);
-    });
     connect(llmclient, &LLMChatClient::networkError, this, [this](QNetworkReply::NetworkError error, const QString &message) {
-        qDebug().noquote() << "[CHATWIDGET]" << message << error;
-        ChatMessage cm;
+        qCritical().noquote() << "[ChatPanelWidget]" << message << error;
+        ChatMessage cm(llmclient);
         cm.setRole(ChatMessage::Role::AssistantRole);
-        cm.setId(QStringLiteral("CS-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+        cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
         cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
-        cm.setModel(selectedModelEntry.id);
+        cm.setModel(llmclient->activeModel().id);
         cm.setContent(QStringLiteral("Error: %1\n%2").arg(error).arg(message));
         chatModel->addMessage(cm);
+        hideProgressPopup();
     });
     connect(llmclient, &LLMChatClient::errorOccurred, this, [this](const QString &error) {
-        qDebug().noquote() << "[CHATWIDGET]" << error;
-        ChatMessage cm;
+        qCritical().noquote() << "[ChatPanelWidget]" << error;
+        ChatMessage cm(llmclient);
         cm.setRole(ChatMessage::Role::AssistantRole);
-        cm.setId(QStringLiteral("CS-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+        cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
         cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
-        cm.setModel(selectedModelEntry.id);
+        cm.setModel(llmclient->activeModel().id);
         cm.setContent(error);
         chatModel->addMessage(cm);
+        hideProgressPopup();
     });
-    connect(llmclient, &LLMChatClient::streamingDataReceived, this, [this](const QString &data) {
-        ChatMessage cm;
-        cm.setRole(ChatMessage::Role::AssistantRole);
-        cm.setId(QStringLiteral("CS-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+    connect(llmclient, &LLMChatClient::toolCompleted, this, [this](const ChatMessage::ToolEntry &tool) { //
+        ChatMessage cm(llmclient);
+        cm.setRole(ChatMessage::Role::SystemRole);
+        cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
         cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
-        cm.setModel(selectedModelEntry.id);
-        cm.setContent(data);
+        cm.setModel(llmclient->activeModel().id);
+        cm.setContent(tr("Tool(%1) #%2 %3 completed.") //
+                          .arg(tool.toolType())
+                          .arg(tool.toolCallId(), tool.functionName()));
         chatModel->addMessage(cm);
     });
-    connect(llmclient, &LLMChatClient::chatCompletionReceived, this, [this](const QJsonObject &response) { //
-        chatModel->addMessageFromJson(response);
+    connect(llmclient, &LLMChatClient::streamCompleted, this, [this]() { //
+        hideProgressPopup();
     });
 }
 
