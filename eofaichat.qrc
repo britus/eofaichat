@@ -2,11 +2,6 @@
     <qresource prefix="/">
         <file>syntaxcolors.json</file>
         <file>eofaichat.css</file>
-        <file>assets/indicators/checkbox-16_black_alpha.png</file>
-        <file>assets/indicators/checkbox-24_black_alpha_unchecked.png</file>
-        <file>assets/indicators/checkbox-24_black_alpha.png</file>
-        <file>assets/indicators/checkbox-24_white_alpha_unchecked.png</file>
-        <file>assets/indicators/checkbox-24_white_alpha.png</file>
         <file>cfg/Tools/calculator.json</file>
         <file>cfg/Tools/display_project_files.json</file>
         <file>cfg/Tools/list_source_files.json</file>
@@ -18,5 +13,19 @@
         <file>cfg/Prompts/translage_cn_to_en.json</file>
         <file>cfg/Prompts/generate_api_doc.json</file>
         <file>cfg/Prompts/code_review.json</file>
+        <file>assets/indicators/radiobutton_unchecked.png</file>
+        <file>assets/indicators/radiobutton_checked.png</file>
+        <file>assets/indicators/checkbox_unchecked.png</file>
+        <file>assets/indicators/checkbox_checked.png</file>
+        <file>Assets/Icons/icon_16x16.png</file>
+        <file>Assets/Icons/icon_16x16@2x.png</file>
+        <file>Assets/Icons/icon_32x32.png</file>
+        <file>Assets/Icons/icon_32x32@2x.png</file>
+        <file>Assets/Icons/icon_128x128.png</file>
+        <file>Assets/Icons/icon_128x128@2x.png</file>
+        <file>Assets/Icons/icon_256x256.png</file>
+        <file>Assets/Icons/icon_256x256@2x.png</file>
+        <file>Assets/Icons/icon_512x512.png</file>
+        <file>Assets/Icons/icon_512x512@2x.png</file>
     </qresource>
 </RCC>

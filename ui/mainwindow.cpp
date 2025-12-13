@@ -15,7 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle(qApp->applicationDisplayName());
-    setWindowIcon(QIcon(":/assets/png/drfxbuilder.png"));
+    setWindowIcon(QIcon(":/Assets/Icons/icon_512x512.png"));
     setWindowFlag(Qt::WindowType::Window, true);
 
     QDir cfgDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));

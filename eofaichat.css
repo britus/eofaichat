@@ -187,13 +187,13 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    image: url(:/assets/indicators/checkbox-24_white_alpha.png);
+    image: url(:/assets/indicators/checkbox_checked.png);
     background-color: #fff;
     border: 1px solid #777;
 }
 
 QCheckBox::indicator:unchecked {
-    image: url(:/assets/indicators/checkbox-24_white_alpha_unchecked.png);
+    image: url(:/assets/indicators/checkbox_unchecked.png);
     background-color: #3a3a3a;
     border: 1px solid #555;
 }
@@ -218,13 +218,13 @@ QRadioButton::indicator {
 }
 
 QRadioButton::indicator:checked {
-image: url(:/assets/indicators/checkbox-24_white_alpha.png);
+    image: url(:/assets/indicators/radiobutton_checked.png);
     background-color: #555;
     border: 1px solid #777;
 }
 
 QRadioButton::indicator:unchecked {
-image: url(:/assets/indicators/checkbox-24_white_alpha_unchecked.png);
+    image: url(:/assets/indicators/radiobutton_unchecked.png);
     background-color: #3a3a3a;
     border: 1px solid #555;
 }
