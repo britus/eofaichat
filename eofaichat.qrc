@@ -17,15 +17,6 @@
         <file>assets/indicators/radiobutton_checked.png</file>
         <file>assets/indicators/checkbox_unchecked.png</file>
         <file>assets/indicators/checkbox_checked.png</file>
-        <file>Assets/Icons/icon_16x16.png</file>
-        <file>Assets/Icons/icon_16x16@2x.png</file>
-        <file>Assets/Icons/icon_32x32.png</file>
-        <file>Assets/Icons/icon_32x32@2x.png</file>
-        <file>Assets/Icons/icon_128x128.png</file>
-        <file>Assets/Icons/icon_128x128@2x.png</file>
-        <file>Assets/Icons/icon_256x256.png</file>
-        <file>Assets/Icons/icon_256x256@2x.png</file>
-        <file>Assets/Icons/icon_512x512.png</file>
-        <file>Assets/Icons/icon_512x512@2x.png</file>
+        <file>assets/eofaichat.png</file>
     </qresource>
 </RCC>

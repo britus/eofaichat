@@ -4,6 +4,8 @@
 #include <QSettings>
 #include <QWidget>
 
+class SettingsManager;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -23,5 +25,5 @@ private:
     QHBoxLayout *mainLayout;
     QWidget *chatContainer;
     QWidget *centralWidget;
-    QSettings *settings;
+    SettingsManager *settingsManager;
 };

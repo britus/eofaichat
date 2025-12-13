@@ -23,6 +23,7 @@
 #include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QMainWindow>
 #include <QMessageBox>
@@ -168,7 +169,11 @@ inline void ChatPanelWidget::createFileListWidget(QVBoxLayout *mainLayout)
 inline void ChatPanelWidget::createInputWidget(QVBoxLayout *mainLayout)
 {
     messageInput = new QTextEdit(this);
-    messageInput->setPlaceholderText("Type your message...");
+#ifdef Q_OS_MACOS
+    messageInput->setPlaceholderText(tr("Type your message... | Option+Enter (⌥ + ⏎) submit."));
+#else
+    messageInput->setPlaceholderText(tr("Type your message... | Alt+Enter submit."));
+#endif
     messageInput->setFixedHeight(100); // adjustable height
     messageInput->setAcceptRichText(false);
     messageInput->setAutoFormatting(QTextEdit::AutoAll);
@@ -191,7 +196,7 @@ inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
     QHBoxLayout *modelLayout = new QHBoxLayout(modelWidget);
     modelLayout->setContentsMargins(12, 12, 12, 12);
 
-    modelLabel = new QLabel("Select Model:", modelWidget);
+    modelLabel = new QLabel(tr("Select Model:"), modelWidget);
     modelLabel->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
 
     comboBox = new QComboBox(modelWidget);
@@ -235,7 +240,7 @@ inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
 
 inline void ChatPanelWidget::createAttachButton(QHBoxLayout *buttonLayout)
 {
-    AttachButton *attachButton = new AttachButton("Attach", this);
+    AttachButton *attachButton = new AttachButton(tr("Attach"), this);
     attachButton->setMinimumHeight(24);
     attachButton->setMinimumWidth(90);
     buttonLayout->addWidget(attachButton);
@@ -274,7 +279,7 @@ inline void ChatPanelWidget::createAttachButton(QHBoxLayout *buttonLayout)
 
 inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
 {
-    QPushButton *toolsButton = new QPushButton("Tools", this);
+    QPushButton *toolsButton = new QPushButton(tr("Tools"), this);
     toolsButton->setMinimumHeight(24);
     toolsButton->setMinimumWidth(90);
     buttonLayout->addWidget(toolsButton);
@@ -285,6 +290,7 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
             toolsWindow = new QMainWindow(this->window());
             toolsWindow->setWindowFlag(Qt::WindowType::Tool, true);
             toolsWindow->setWindowTitle(qApp->applicationDisplayName() + " - Tools");
+            toolsWindow->setWindowIcon(QIcon(":/assets/eofaichat.png"));
             // Set window properties
             toolsWindow->setFixedSize(340, 410);
             toolsWindow->resize(toolsWindow->size());
@@ -316,7 +322,7 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
 
 inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
 {
-    QPushButton *sendButton = new QPushButton("Send", this);
+    sendButton = new QPushButton(tr("Send"), this);
     sendButton->setMinimumHeight(24);
     sendButton->setMinimumWidth(90);
     buttonLayout->addWidget(sendButton);
@@ -391,7 +397,7 @@ inline void ChatPanelWidget::connectLLMClient()
 void ChatPanelWidget::onShowProgressPopup()
 {
     if (progressPopup)
-        delete progressPopup;
+        progressPopup->deleteLater();
     // Initialize progress popup
     progressPopup = new ProgressPopup(this);
     // Enable blur effect on central widget
@@ -406,7 +412,7 @@ void ChatPanelWidget::onHideProgressPopup()
     if (progressPopup) {
         progressPopup->setBlurEffect(false);
         progressPopup->hide();
-        delete progressPopup;
+        progressPopup->deleteLater();
         progressPopup = nullptr;
     }
 }
@@ -462,6 +468,41 @@ void ChatPanelWidget::dropEvent(QDropEvent *event)
         }
         event->acceptProposedAction();
     }
+}
+
+// ---------------- Key Press Event ----------------
+void ChatPanelWidget::keyPressEvent(QKeyEvent *event)
+{
+    // Check if Ctrl+Enter or Cmd+Enter is pressed (depending on platform)
+    bool isCtrlPressed = event->modifiers().testFlag(Qt::ControlModifier);
+    bool isCmdPressed = event->modifiers().testFlag(Qt::MetaModifier); // For macOS
+    bool isShiftPressed = event->modifiers().testFlag(Qt::ShiftModifier);
+
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+        // If Shift is pressed, create a new line
+        if (isShiftPressed) {
+            // Allow the default behavior (new line)
+            QWidget::keyPressEvent(event);
+            return;
+        }
+
+        // If Ctrl+Enter or Cmd+Enter is pressed, create a new line
+        if (isCtrlPressed || isCmdPressed) {
+            // Allow the default behavior (new line)
+            QWidget::keyPressEvent(event);
+            return;
+        }
+
+        // If Enter is pressed without modifiers, send the message
+        // Call the send button's click handler directly
+        if (sendButton) {
+            sendButton->click();
+        }
+        return;
+    }
+
+    // For all other key events, call the parent implementation
+    QWidget::keyPressEvent(event);
 }
 
 // ---------------- Chat Tooling Events ----------------

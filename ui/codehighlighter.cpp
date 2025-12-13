@@ -6,7 +6,7 @@ CodeHighlighter::CodeHighlighter(QTextDocument *parent, const QString &language,
     , m_language(language.toLower())
     , m_model(model)
 {
-    defaultFormat.setFontFamily("monospace");
+    defaultFormat.setFontFamilies(QStringList() << "Menlo" << "Consolas" << "monospace");
     defaultFormat.setFontPointSize(11);
     setupRulesForLanguage(language);
 }
@@ -20,7 +20,7 @@ void CodeHighlighter::setupRulesForLanguage(const QString &language)
         QTextCharFormat f;
         QColor c = m_model ? m_model->colorFor(language, tokenKey, QColor("#cccccc")) : QColor("#cccccc");
         f.setForeground(c);
-        f.setFontFamily("monospace");
+        f.setFontFamilies(QStringList() << "Menlo" << "Consolas" << "monospace");
         return f;
     };
 
@@ -83,7 +83,7 @@ void CodeHighlighter::highlightBlock(const QString &text)
     // Apply default format (monospace) to whole block
     setCurrentBlockState(0);
 
-    foreach (const Rule &r, qAsConst(rules)) {
+    foreach (const Rule &r, std::as_const(rules)) {
         QRegularExpressionMatchIterator it = r.pattern.globalMatch(text);
         while (it.hasNext()) {
             QRegularExpressionMatch match = it.next();

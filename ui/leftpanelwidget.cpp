@@ -19,7 +19,7 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     layout->setSpacing(12);
 
     // ---------------- New Chat ----------------------------------
-    newChatButton = new QPushButton("New Chat", this);
+    newChatButton = new QPushButton(tr("New Chat"), this);
     newChatButton->setMinimumHeight(48);
     connect(newChatButton, &QPushButton::clicked, this, &LeftPanelWidget::onNewChat);
     layout->addWidget(newChatButton);
@@ -67,19 +67,19 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     connect(autoHideTimer, &QTimer::timeout, this, &LeftPanelWidget::onCancelDelete);
 
     // ---------------- Updates ------------------------------------
-    updatesButton = new QPushButton("Updates", this);
+    updatesButton = new QPushButton(tr("Updates"), this);
     updatesButton->setMinimumHeight(48);
     connect(updatesButton, &QPushButton::clicked, this, &LeftPanelWidget::onUpdates);
     layout->addWidget(updatesButton);
 
     // ---------------- Downloads ----------------------------------
-    downloadsButton = new QPushButton("Downloads", this);
+    downloadsButton = new QPushButton(tr("Downloads"), this);
     downloadsButton->setMinimumHeight(48);
     connect(downloadsButton, &QPushButton::clicked, this, &LeftPanelWidget::downloadClicked);
     layout->addWidget(downloadsButton);
 
     // ---------------- About --------------------------------------
-    aboutButton = new QPushButton("About", this);
+    aboutButton = new QPushButton(tr("About"), this);
     aboutButton->setMinimumHeight(48);
     connect(aboutButton, &QPushButton::clicked, this, &LeftPanelWidget::aboutClicked);
     layout->addWidget(aboutButton);
@@ -124,8 +124,8 @@ void LeftPanelWidget::onEditChat()
     bool ok = false;
     QString newName = QInputDialog::getText( //
         this,
-        "Rename chat",
-        "Enter name:",
+        tr("Rename chat"),
+        tr("Enter name:"),
         QLineEdit::Normal,
         currentName,
         &ok);
@@ -182,10 +182,10 @@ void LeftPanelWidget::onChatNameChanged(const QString & /*newName*/)
 void LeftPanelWidget::onAddChat()
 {
     // Create a new chat with default name
-    QString newName = "New LLM chat";
+    QString newName = tr("New LLM chat");
     int count = chatModel->chatCount();
     if (count > 0) {
-        newName = QString("New LLM chat %1").arg(count + 1);
+        newName = QString(tr("New LLM chat %1")).arg(count + 1);
     }
 
     chatModel->addChat(newName);
@@ -212,9 +212,9 @@ void LeftPanelWidget::onContextMenu(const QPoint &point)
     QMenu contextMenu(this);
 
     // Add actions to the context menu
-    QAction *addAction = contextMenu.addAction("Add Chat");
-    QAction *editAction = contextMenu.addAction("Edit Chat");
-    QAction *deleteAction = contextMenu.addAction("Delete Chat");
+    QAction *addAction = contextMenu.addAction(tr("Add Chat"));
+    QAction *editAction = contextMenu.addAction(tr("Edit Chat"));
+    QAction *deleteAction = contextMenu.addAction(tr("Delete Chat"));
 
     // Enable/disable actions based on selection
     auto currentIndex = chatList->currentIndex();

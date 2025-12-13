@@ -159,7 +159,7 @@ mac {
         $$QTDIR/plugins/imageformats/libqjpeg.dylib \
         $$QTDIR/plugins/imageformats/libqmacheif.dylib \
         $$QTDIR/plugins/imageformats/libqmacjp2.dylib \
-        $$QTDIR/plugins/imageformats/libqpdf.dylib \
+        #$$QTDIR/plugins/imageformats/libqpdf.dylib \
         $$QTDIR/plugins/imageformats/libqsvg.dylib \
         $$QTDIR/plugins/imageformats/libqtga.dylib \
         $$QTDIR/plugins/imageformats/libqtiff.dylib \
@@ -314,10 +314,12 @@ SUBDIRS += \
 
 # Main application source files
 HEADERS += \
-    $$PWD/main.cpp
+    $$PWD/main.cpp \
+    appbundle.h
 
 SOURCES += \
-    $$PWD/main.cpp
+    $$PWD/main.cpp \
+    appbundle.mm
 
 DISTFILES += \
     privacy.txt \

@@ -1,6 +1,7 @@
 #include <chatpanelwidget.h>
 #include <leftpanelwidget.h>
 #include <mainwindow.h>
+#include <settingsmanager.h>
 #include <QApplication>
 #include <QDebug>
 #include <QDir>
@@ -13,18 +14,11 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
+    , settingsManager(new SettingsManager(this))
 {
     setWindowTitle(qApp->applicationDisplayName());
-    setWindowIcon(QIcon(":/Assets/Icons/icon_512x512.png"));
+    setWindowIcon(QIcon(":/assets/eofaichat.png"));
     setWindowFlag(Qt::WindowType::Window, true);
-
-    QDir cfgDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));
-    QString orgName = qApp->organizationName();
-    QString appName = qApp->applicationName();
-    QString fileName = cfgDir.absoluteFilePath("eofaichat.settings");
-
-    settings = new QSettings(orgName, appName, this);
-    settings->setPath(QSettings::NativeFormat, QSettings::UserScope, fileName);
 
     centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
@@ -53,19 +47,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     QStatusBar *statusbar = new QStatusBar(this);
     statusbar->setSizeGripEnabled(true);
-    statusbar->showMessage(tr("%1 | %2 | Copyright © 2025 by EoF Software Labs") //
+    statusbar->showMessage(QStringLiteral("%1 | %2 | Copyright © 2025 by EoF Software Labs") //
                                .arg(qApp->applicationDisplayName(), qApp->applicationVersion()));
     setStatusBar(statusbar);
 
-    // center window on primary screen
-    QScreen *screen = qApp->primaryScreen();
-    int width = settings->value("window.width", 1024).toInt();
-    int hight = settings->value("window.height", 640).toInt();
-    if (width > 0 && width < screen->size().width() && hight > 0 && hight < screen->size().height()) {
-        uint centerX = screen->size().width() / 2 - width / 2;
-        uint centerY = screen->size().height() / 2 - hight / 2;
-        setGeometry(centerX, centerY, width, hight);
-    }
+    // Load window size and position
+    settingsManager->loadWindowSize(this);
 
     QSplitter *splitter = new QSplitter(Qt::Horizontal, centralWidget);
     centralWidget->layout()->addWidget(splitter);
@@ -73,26 +60,18 @@ MainWindow::MainWindow(QWidget *parent)
     splitter->insertWidget(1, chatContainer);
     splitter->setHandleWidth(10);
 
-    int spleft = settings->value("splitter.left", 200).toInt();
-    int spright = settings->value("splitter.right", width / 2).toInt();
-    splitter->setSizes(QList<int>() << spleft << spright);
+    // Load splitter position
+    settingsManager->loadSplitterPosition(splitter);
 
-    connect(splitter, &QSplitter::splitterMoved, this, [this, splitter](int, int) {
-        settings->setValue("splitter.left", splitter->sizes().at(0));
-        settings->setValue("splitter.right", splitter->sizes().at(1));
+    connect(splitter, &QSplitter::splitterMoved, this, [this, splitter](int, int) { //
+        settingsManager->saveSplitterPosition(splitter);
     });
-
-    connect(qApp, &QApplication::aboutToQuit, this, [this] {
-        settings->setValue("window.width", geometry().width()); //
-        settings->setValue("window.height", geometry().height());
-        settings->sync();
-        if (settings->status() != QSettings::NoError) {
-            qCritical("Unable to write settings file.");
-        }
+    connect(qApp, &QApplication::aboutToQuit, this, [this] { //
+        settingsManager->saveWindowSize(this);
     });
 
     // Create initial chat
-    leftPanel->createInitialChat("New LLM chat");
+    leftPanel->createInitialChat(tr("New LLM chat"));
 }
 
 MainWindow::~MainWindow()

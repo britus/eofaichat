@@ -26,6 +26,7 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QKeyEvent>
 
 class ChatPanelWidget : public QWidget
 {
@@ -37,6 +38,7 @@ public:
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
 private slots:
     void onUpdateChatText(int index, ChatMessage *message, bool removed = false);
@@ -50,6 +52,7 @@ private:
     QWidget *chatWidgetContainer;
     QScrollArea *scrollArea;
     QTextEdit *messageInput;
+    QPushButton *sendButton;
 
     LLMChatClient *llmclient;
     ChatModel *chatModel;

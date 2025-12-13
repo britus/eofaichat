@@ -1,3 +1,4 @@
+#include <appbundle.h>
 #include <ui/mainwindow.h>
 #include <QApplication>
 #include <QFile>
@@ -64,11 +65,11 @@ int main(int argc, char *argv[])
         r.close();
     }
 
-    QApplication::setOrganizationName("EoF Software Labs");
-    QApplication::setOrganizationDomain("com.eofsl");
-    QApplication::setApplicationName("eofaichat");
-    QApplication::setApplicationDisplayName("EoF Smart AI Chat");
-    QApplication::setApplicationVersion("1.0.0");
+    QApplication::setOrganizationName(QStringLiteral("EoF Software Labs"));
+    QApplication::setOrganizationDomain(QStringLiteral("org.eof.tools.smartaichat"));
+    QApplication::setApplicationName(QStringLiteral("eofaichat"));
+    QApplication::setApplicationDisplayName(QStringLiteral("EoF Smart AI Chat"));
+    QApplication::setApplicationVersion(QStringLiteral("%1.%2").arg(getBundleVersion(), getBuildNumber()));
 
     QApplication a(argc, argv);
     a.setPalette(darkPalette);
