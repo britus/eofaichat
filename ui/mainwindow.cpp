@@ -1,12 +1,17 @@
 #include <chatpanelwidget.h>
 #include <leftpanelwidget.h>
+#include <llmconnectionmodel.h>
+#include <llmconnectionsdialog.h>
 #include <mainwindow.h>
 #include <settingsmanager.h>
+#include <QAction>
 #include <QApplication>
 #include <QDebug>
 #include <QDir>
 #include <QHBoxLayout>
 #include <QMainWindow>
+#include <QMenu>
+#include <QMenuBar>
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QStatusBar>
@@ -15,10 +20,12 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , settingsManager(new SettingsManager(this))
+    , m_connectionModel(new LLMConnectionModel(this))
 {
     setWindowTitle(qApp->applicationDisplayName());
     setWindowIcon(QIcon(":/assets/eofaichat.png"));
     setWindowFlag(Qt::WindowType::Window, true);
+    setMinimumSize(QSize(1024, 720));
 
     centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
@@ -47,8 +54,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     QStatusBar *statusbar = new QStatusBar(this);
     statusbar->setSizeGripEnabled(true);
-    statusbar->showMessage(QStringLiteral("%1 | %2 | Copyright © 2025 by EoF Software Labs") //
-                               .arg(qApp->applicationDisplayName(), qApp->applicationVersion()));
+    statusbar->showMessage(QStringLiteral("%1 | %2 | Copyright © 2025 by EoF Software Labs").arg(qApp->applicationDisplayName(), qApp->applicationVersion()));
     setStatusBar(statusbar);
 
     // Load window size and position
@@ -63,12 +69,11 @@ MainWindow::MainWindow(QWidget *parent)
     // Load splitter position
     settingsManager->loadSplitterPosition(splitter);
 
-    connect(splitter, &QSplitter::splitterMoved, this, [this, splitter](int, int) { //
-        settingsManager->saveSplitterPosition(splitter);
-    });
-    connect(qApp, &QApplication::aboutToQuit, this, [this] { //
-        settingsManager->saveWindowSize(this);
-    });
+    connect(splitter, &QSplitter::splitterMoved, this, [this, splitter](int, int) { settingsManager->saveSplitterPosition(splitter); });
+    connect(qApp, &QApplication::aboutToQuit, this, [this] { settingsManager->saveWindowSize(this); });
+
+    // Setup menu bar
+    setupMenuBar();
 
     // Create initial chat
     leftPanel->createInitialChat(tr("New LLM chat"));
@@ -76,7 +81,41 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    //
+    settingsManager->saveWindowSize(this);
+}
+
+extern int loadStyleSheet(QApplication *app, const QString &name);
+
+void MainWindow::setupMenuBar()
+{
+    QMenuBar *menuBar = this->menuBar();
+
+    // Tools menu
+    m_toolsMenu = menuBar->addMenu(tr("&Tools"));
+
+    // Manage connections action
+    QAction *manageConnectionsAction = m_toolsMenu->addAction(tr("&Manage LLM Connections"));
+    manageConnectionsAction->setShortcut(QKeySequence::Preferences);
+    connect(manageConnectionsAction, &QAction::triggered, this, &MainWindow::onManageConnections);
+
+    m_toolsMenu->addSeparator();
+
+    // Theme selector
+    QAction *action;
+    action = m_toolsMenu->addAction(tr("&Default theme"));
+    connect(action, &QAction::triggered, this, []() { //
+        loadStyleSheet(qApp, "eofaichat");
+    });
+    action = m_toolsMenu->addAction(tr("&Purple theme"));
+    connect(action, &QAction::triggered, this, []() { //
+        loadStyleSheet(qApp, "eofaichat_purple");
+    });
+}
+
+void MainWindow::onManageConnections()
+{
+    LLMConnectionsDialog dialog(m_connectionModel, this);
+    dialog.exec();
 }
 
 void MainWindow::onChatRemoved(QWidget *chatWidget)

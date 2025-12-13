@@ -18,5 +18,6 @@
         <file>assets/indicators/checkbox_unchecked.png</file>
         <file>assets/indicators/checkbox_checked.png</file>
         <file>assets/eofaichat.png</file>
+        <file>eofaichat_purple.css</file>
     </qresource>
 </RCC>

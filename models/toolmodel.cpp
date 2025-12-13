@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -166,7 +167,7 @@ void ToolModel::removeToolEntry(int index)
     emit toolRemoved(index);
 }
 
-inline void ToolModel::createConfigDir(const QDir &dir)
+inline bool ToolModel::createConfigPath(const QDir &dir) const
 {
     if (!dir.exists()) {
         QFile::Permissions permissions;
@@ -178,76 +179,174 @@ inline void ToolModel::createConfigDir(const QDir &dir)
         permissions.setFlag(QFile::Permission::ExeGroup, true);
         if (!dir.mkpath(dir.absolutePath(), permissions)) {
             qWarning("Unable to create directory: %s", qPrintable(dir.absolutePath()));
-            return;
+            return false;
+        }
+    }
+    return true;
+}
+
+inline QDir ToolModel::configDirectory(const QString &pathName) const
+{
+    // server tools configuration
+    QDir dir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));
+
+    // fallback to internal resource
+    if (!QFileInfo::exists(dir.absoluteFilePath(pathName))) {
+        if (!createConfigPath(dir.absoluteFilePath(pathName))) {
+            return QDir(QStringLiteral(":/cfg")).absoluteFilePath(pathName);
+        }
+    }
+
+    return dir.absoluteFilePath(pathName);
+}
+
+bool ToolModel::deployResourceFiles(const QString &resourcePath, const QDir &targetDir)
+{
+    // Ensure target directory exists
+    if (!targetDir.exists()) {
+        if (!createConfigPath(targetDir)) {
+            qCritical() << "[ToolModel] Failed to create target directory:" << targetDir.absolutePath();
+            return false;
+        }
+    }
+
+    bool success = true;
+
+    // Iterate through each subdirectory
+    QDir sourceDir(resourcePath);
+    QFileInfo sourceInfo(sourceDir.absolutePath());
+
+    // Check if the source subdirectory exists
+    if (!sourceDir.exists()) {
+        qCritical() << "[ToolModel] Source subdirectory does not exist:" << sourceDir.absolutePath();
+        return false;
+    }
+
+    // Get all files in the subdirectory
+    QFileInfoList fileInfoList = sourceDir.entryInfoList( //
+        QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+
+    foreach (const QFileInfo &fileInfo, fileInfoList) {
+        QString fileName = fileInfo.fileName();
+        QString sourceFilePath = fileInfo.absoluteFilePath();
+        QString targetFilePath = targetDir.absoluteFilePath(fileName);
+
+        if (fileInfo.isDir()) {
+            // Handle directories recursively
+            QDir targetSubDir(targetFilePath);
+            if (!targetSubDir.exists()) {
+                if (!targetSubDir.mkpath(".")) {
+                    qWarning() << "Failed to create directory:" << targetFilePath;
+                    success = false;
+                    continue;
+                }
+            }
+
+            // Copy directory contents recursively
+            if (!copyDirectoryRecursively(sourceFilePath, targetFilePath)) {
+                qWarning() << "Failed to copy directory:" << sourceFilePath;
+                success = false;
+            }
+        } else {
+            // Handle files
+            QFile sourceFile(sourceFilePath);
+            QFile targetFile(targetFilePath);
+
+            // Remove existing file if it exists
+            if (targetFile.exists()) {
+                if (!targetFile.remove()) {
+                    qWarning() << "Failed to remove existing file:" << targetFilePath;
+                    success = false;
+                    continue;
+                }
+            }
+
+            // Copy file
+            if (!sourceFile.copy(targetFilePath)) {
+                qWarning() << "Failed to copy file from" << sourceFilePath << "to" << targetFilePath;
+                success = false;
+            } else {
+                qDebug() << "Copied file:" << fileName;
+            }
+        }
+    }
+
+    return success;
+}
+
+// Helper function to copy directories recursively
+bool ToolModel::copyDirectoryRecursively(const QString &sourceDirPath, const QString &targetDirPath)
+{
+    QDir sourceDir(sourceDirPath);
+    QDir targetDir(targetDirPath);
+
+    if (!targetDir.exists()) {
+        if (!targetDir.mkpath(".")) {
+            return false;
+        }
+    }
+
+    QFileInfoList fileInfoList = sourceDir.entryInfoList( //
+        QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+
+    foreach (const QFileInfo &fileInfo, fileInfoList) {
+        QString fileName = fileInfo.fileName();
+        QString sourceFilePath = fileInfo.absoluteFilePath();
+        QString targetFilePath = targetDirPath + QDir::separator() + fileName;
+
+        if (fileInfo.isDir()) {
+            // Recursively copy subdirectory
+            if (!copyDirectoryRecursively(sourceFilePath, targetFilePath)) {
+                return false;
+            }
+        } else {
+            // Copy file
+            QFile sourceFile(sourceFilePath);
+            QFile targetFile(targetFilePath);
+
+            if (targetFile.exists()) {
+                if (!targetFile.remove()) {
+                    return false;
+                }
+            }
+
+            if (!sourceFile.copy(targetFilePath)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+inline void ToolModel::loadToolsConfig(const QString &subPath, ToolType type)
+{
+    QDir::Filters filters = QDir::Files | QDir::Readable | QDir::AllDirs | QDir::NoDotAndDotDot;
+    QDir configDir = configDirectory(subPath);
+    configDir.setFilter(filters);
+
+    // write internal tools configuation to app configuration directory
+    if (!configDir.absolutePath().startsWith(":")) {
+        deployResourceFiles(QStringLiteral(":/cfg/%1").arg(subPath), configDir);
+    }
+
+    // get tool configuration files
+    QFileInfoList files = configDir.entryInfoList(QStringList() << "*.json", filters);
+    foreach (auto fi, files) {
+        if (fi.isFile() && fi.isReadable()) {
+            loadFromDirectory(fi, type);
         }
     }
 }
 
 void ToolModel::loadToolsConfig()
 {
-    // server tools configuration
-    QString baseCfgPath;
-    baseCfgPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-
-    { // Executable tools
-        //QString configPath = baseCfgPath + QDir::separator() + "Tools";
-        QString configPath = QStringLiteral(":/cfg") + QDir::separator() + QStringLiteral("Tools");
-
-        // ensure directory exist
-        QDir configDir(configPath);
-        //createConfigDir(configDir);
-
-        QDir::Filters filters = QDir::Files | QDir::Readable | QDir::AllDirs;
-        configDir.setFilter(filters);
-
-        // get tool configuration files
-        QFileInfoList files = configDir.entryInfoList(QStringList() << "*.json", filters);
-        foreach (auto fi, files) {
-            if (fi.isFile() && fi.isReadable()) {
-                loadFromDirectory(fi, Tool);
-            }
-        }
-    }
-
-    { // Known resources
-        //QString configPath = baseCfgPath + QDir::separator() + "Resources";
-        QString configPath = QStringLiteral(":/cfg") + QDir::separator() + QStringLiteral("Resources");
-
-        // ensure directory exist
-        QDir configDir(configPath);
-        createConfigDir(configDir);
-
-        QDir::Filters filters = QDir::Files | QDir::Readable | QDir::AllDirs;
-        configDir.setFilter(filters);
-
-        // get tool configuration files
-        QFileInfoList files = configDir.entryInfoList(QStringList() << "*.json", filters);
-        foreach (auto fi, files) {
-            if (fi.isFile() && fi.isReadable()) {
-                loadFromDirectory(fi, Resource);
-            }
-        }
-    }
-
-    { // Prompts
-        //QString configPath = baseCfgPath + QDir::separator() + "Prompts";
-        QString configPath = QStringLiteral(":/cfg") + QDir::separator() + QStringLiteral("Prompts");
-
-        // ensure directory exist
-        QDir configDir(configPath);
-        createConfigDir(configDir);
-
-        QDir::Filters filters = QDir::Files | QDir::Readable | QDir::AllDirs;
-        configDir.setFilter(filters);
-
-        // get tool configuration files
-        QFileInfoList files = configDir.entryInfoList(QStringList() << "*.json", filters);
-        foreach (auto fi, files) {
-            if (fi.isFile() && fi.isReadable()) {
-                loadFromDirectory(fi, Prompt);
-            }
-        }
-    }
+    // Executable tools
+    loadToolsConfig(QStringLiteral("Tools"), Tool);
+    // Known resources
+    loadToolsConfig(QStringLiteral("Resources"), Resource);
+    // Prompts
+    loadToolsConfig(QStringLiteral("Prompts"), Prompt);
 }
 
 bool ToolModel::hasExecutables() const

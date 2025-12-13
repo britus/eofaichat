@@ -260,25 +260,24 @@ mac {
     QMAKE_BUNDLE_DATA += frameworks
 
     #translations_en.files = \
-    #	$$PWD/assets/en.lproj/InfoPlist.strings \
-    #	$$PWD/vspui_en_US.qm
+    #    $$PWD/assets/en.lproj/InfoPlist.strings \
+    #    $$PWD/vspui_en_US.qm
     #translations_en.path = Contents/Resources/en.lproj
     #QMAKE_BUNDLE_DATA += translations_en
 
     #translations_de.files = \
-    #	$$PWD/assets/de.lproj/InfoPlist.strings \
-    #	$$PWD/vspui_de_DE.qm
+    #    $$PWD/assets/de.lproj/InfoPlist.strings \
+    #    $$PWD/vspui_de_DE.qm
     #translations_de.path = Contents/Resources/de.lproj
     #QMAKE_BUNDLE_DATA += translations_de
 
-    ICON = $$PWD/assets/eofaichat.png
+    #ICON = $$PWD/assets/eofaichat.png
 
     icons.files = \
         $$PWD/assets/icons/icon_16x16.png \
+        $$PWD/assets/icons/icon_16x16@2x.png \
         $$PWD/assets/icons/icon_128x128.png \
         $$PWD/assets/icons/icon_128x128@2x.png \
-        $$PWD/assets/icons/icon_16x16.png \
-        $$PWD/assets/icons/icon_16x16@2x.png \
         $$PWD/assets/icons/icon_256x256.png \
         $$PWD/assets/icons/icon_256x256@2x.png \
         $$PWD/assets/icons/icon_32x32.png \
@@ -314,12 +313,13 @@ SUBDIRS += \
 
 # Main application source files
 HEADERS += \
-    $$PWD/main.cpp \
-    appbundle.h
+    $$PWD/main.cpp
 
 SOURCES += \
-    $$PWD/main.cpp \
-    appbundle.mm
+    $$PWD/main.cpp
+
+OBJECTIVE_SOURCES += $$PWD/appbundle.mm
+OBJECTIVE_HEADERS += $$PWD/appbundle.h
 
 DISTFILES += \
     privacy.txt \

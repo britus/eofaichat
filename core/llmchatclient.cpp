@@ -289,7 +289,7 @@ inline void LLMChatClient::parseResponse(const QByteArray &data)
 
 inline void LLMChatClient::parseResponse(const QJsonObject &response)
 {
-    //qDebug().noquote() << "[LLMChatClient] parseResponse object:" << response;
+    qDebug().noquote() << "[LLMChatClient] parseResponse object:" << response;
 
     // handle chat message response
     if (!response.contains("id")) {
@@ -352,7 +352,7 @@ inline void LLMChatClient::checkAndRunTooling(ChatMessage *message)
                qPrintable(tool.m_toolCallId),
                qPrintable(tool.m_functionName),
                qPrintable(tool.m_arguments));
-        emit toolRequest(tool);
+        emit toolRequest(message, tool);
     }
 }
 

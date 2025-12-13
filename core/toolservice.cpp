@@ -44,7 +44,6 @@ QJsonObject ToolService::execute(const ToolModel *model, const QString &function
     }
 
     QJsonObject result;
-
     if (tool.name == "display_project_files" || tool.name == "list_source_files") {
         QStringList extensions;
         QString sortBy = "name";

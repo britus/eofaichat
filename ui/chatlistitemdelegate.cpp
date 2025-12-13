@@ -17,9 +17,9 @@ void ChatListItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &
     // Draw delete button on hover - make sure it's painted on top
     if (option.state & QStyle::State_MouseOver) {
         QRect deleteButtonRect = option.rect;
-        deleteButtonRect.setLeft(deleteButtonRect.right() - 30);
-        deleteButtonRect.setWidth(25);
-        deleteButtonRect.setTop(deleteButtonRect.top() + 5);
+        deleteButtonRect.setLeft(deleteButtonRect.right() - 35);
+        deleteButtonRect.setWidth(20);
+        deleteButtonRect.setTop(deleteButtonRect.top() + 10);
         deleteButtonRect.setHeight(20);
 
         painter->save();

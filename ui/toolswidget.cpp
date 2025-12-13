@@ -94,17 +94,21 @@ QWidget *ToolsWidget::createToolbar(int index)
     toolbar->setObjectName(QStringLiteral("toolPageToolbar%1").arg(index));
 
     QHBoxLayout *layout = new QHBoxLayout(toolbar);
-    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setContentsMargins(2, 2, 12, 2);
 
     // Refresh button
     QToolButton *refreshButton = new QToolButton(toolbar);
+    refreshButton->setObjectName(QStringLiteral("refreshButton%1").arg(index));
+    refreshButton->setText("∙");
     refreshButton->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
     refreshButton->setToolTip(tr("Refresh"));
     connect(refreshButton, &QToolButton::clicked, [this, index]() { refreshTool(index); });
+    refreshButton->setVisible(false);
 
     // Options button
     QToolButton *optionsButton = new QToolButton(toolbar);
-    optionsButton->setText("...");
+    refreshButton->setObjectName(QStringLiteral("optionsButton%1").arg(index));
+    optionsButton->setText("∙");
     optionsButton->setToolTip(tr("Options"));
     // Create menu for options button
     QMenu *optionsMenu = new QMenu(optionsButton);
@@ -152,7 +156,7 @@ QWidget *ToolsWidget::createToolItem(int index)
 
     // Tool button with popup menu
     QToolButton *toolButton = new QToolButton(widget);
-    toolButton->setText("...");
+    toolButton->setText("∙");
     toolButton->setPopupMode(QToolButton::InstantPopup);
 
     QMenu *menu = new QMenu(toolButton);

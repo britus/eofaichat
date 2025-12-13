@@ -19,14 +19,16 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     layout->setSpacing(12);
 
     // ---------------- New Chat ----------------------------------
-    newChatButton = new QPushButton(tr("New Chat"), this);
+    newChatButton = new QPushButton(tr("New LLM Chat"), this);
     newChatButton->setMinimumHeight(48);
     connect(newChatButton, &QPushButton::clicked, this, &LeftPanelWidget::onNewChat);
     layout->addWidget(newChatButton);
 
     // ---------------- Chat List ----------------------------------
     chatModel = new ChatListModel(this);
-    connect(chatModel, &ChatListModel::chatRemoved, this, [this](QWidget *w) { emit chatRemoved(w); });
+    connect(chatModel, &ChatListModel::chatRemoved, this, [this](QWidget *w) { //
+        emit chatRemoved(w);
+    });
 
     chatList = new QListView(this);
     chatList->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -51,7 +53,10 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     trashLayout->setContentsMargins(0, 0, 0, 0);
 
     trashYes = new QPushButton(QString::fromUtf8("✓"), trashConfirmWidget);
+    trashYes->setObjectName("trashYes");
+
     trashNo = new QPushButton(QString::fromUtf8("✕"), trashConfirmWidget);
+    trashNo->setObjectName("trashNo");
 
     trashLayout->addWidget(trashYes);
     trashLayout->addWidget(trashNo);

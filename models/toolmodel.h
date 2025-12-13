@@ -73,7 +73,11 @@ private:
     QList<ToolEntry> m_toolEntries;
 
 private:
-    inline void createConfigDir(const QDir &dir);
+    inline bool createConfigPath(const QDir &dir) const;
+    inline QDir configDirectory(const QString &pathName) const;
+    inline bool deployResourceFiles(const QString &resourcePath, const QDir &targetDir);
+    inline bool copyDirectoryRecursively(const QString &sourcePath, const QString &targetPath);
+    inline void loadToolsConfig(const QString &subPath, ToolType type);
 };
 Q_DECLARE_METATYPE(ToolModel::ToolOption)
 Q_DECLARE_METATYPE(ToolModel::ToolType)

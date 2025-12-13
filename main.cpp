@@ -33,8 +33,38 @@ public:
     }
 };
 
+int loadStyleSheet(QApplication *app, const QString &name)
+{
+    QString css;
+    QFile r(QStringLiteral(":/%1.css").arg(name));
+    if (r.open(QFile::ReadOnly)) {
+        css = r.readAll();
+        r.close();
+        app->setStyleSheet(css);
+    } else {
+        return errno;
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
+    /* configure custom GUI style hinter */
+    QStyle *style;
+#if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
+    if (!(style = QStyleFactory::create("Fusion"))) {
+        return -1;
+    }
+#elif defined(Q_OS_WINDOWS)
+    if (!(style = QStyleFactory::create("Windows"))) {
+        return -1;
+    }
+#elif
+#error "Unsupported platform"
+#endif
+    ApplicationStyle *appStyle = new ApplicationStyle();
+    appStyle->setBaseStyle(style);
+
     QPalette darkPalette;
     darkPalette.setColor(QPalette::Window, QColor(53, 53, 53));
     darkPalette.setColor(QPalette::WindowText, Qt::white);
@@ -50,21 +80,6 @@ int main(int argc, char *argv[])
     darkPalette.setColor(QPalette::Highlight, QColor(42, 130, 218));
     darkPalette.setColor(QPalette::HighlightedText, Qt::white);
 
-    /* configure custom GUI style hinter */
-    QStyle *style;
-    if (!(style = QStyleFactory::create("Fusion"))) {
-        return -1;
-    }
-    ApplicationStyle *appStyle = new ApplicationStyle();
-    appStyle->setBaseStyle(style);
-
-    QString css;
-    QFile r(":/eofaichat.css");
-    if (r.open(QFile::ReadOnly)) {
-        css = r.readAll();
-        r.close();
-    }
-
     QApplication::setOrganizationName(QStringLiteral("EoF Software Labs"));
     QApplication::setOrganizationDomain(QStringLiteral("org.eof.tools.smartaichat"));
     QApplication::setApplicationName(QStringLiteral("eofaichat"));
@@ -73,8 +88,11 @@ int main(int argc, char *argv[])
 
     QApplication a(argc, argv);
     a.setPalette(darkPalette);
-    a.setStyleSheet(css);
     a.setStyle(appStyle);
+
+    if (loadStyleSheet(&a, "eofaichat") != 0) {
+        return -1;
+    }
 
     QTranslator translator;
     const QStringList uiLanguages = QLocale::system().uiLanguages();
@@ -86,8 +104,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    MainWindow w;
-    w.show();
+    MainWindow window;
+    window.show();
 
     return a.exec();
 }

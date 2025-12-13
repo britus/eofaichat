@@ -15,6 +15,7 @@
 #include <QDropEvent>
 #include <QGridLayout>
 #include <QJsonDocument>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -26,7 +27,6 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <QKeyEvent>
 
 class ChatPanelWidget : public QWidget
 {
@@ -42,7 +42,7 @@ protected:
 
 private slots:
     void onUpdateChatText(int index, ChatMessage *message, bool removed = false);
-    void onToolRequest(const ChatMessage::ToolEntry &tool);
+    void onToolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);
     void onHideProgressPopup();
     void onShowProgressPopup();
 

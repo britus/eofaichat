@@ -6,6 +6,7 @@ HEADERS += \
     $$PWD/chatmessage.h \
     $$PWD/chatmodel.h \
     $$PWD/filelistmodel.h \
+    $$PWD/llmconnectionmodel.h \
     $$PWD/modelentry.h \
     $$PWD/modellistmodel.h \
     $$PWD/syntaxcolormodel.h \
@@ -16,6 +17,7 @@ SOURCES += \
     $$PWD/chatmessage.cpp \
     $$PWD/chatmodel.cpp \
     $$PWD/filelistmodel.cpp \
+    $$PWD/llmconnectionmodel.cpp \
     $$PWD/modellistmodel.cpp \
     $$PWD/syntaxcolormodel.cpp \
     $$PWD/toolmodel.cpp

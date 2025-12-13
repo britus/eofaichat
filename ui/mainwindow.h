@@ -3,8 +3,13 @@
 #include <QMainWindow>
 #include <QSettings>
 #include <QWidget>
+#include <QMenu>
+#include <QMenuBar>
+#include <QAction>
 
 class SettingsManager;
+class LLMConnectionModel;
+class LLMConnectionsDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -20,10 +25,16 @@ public:
 private slots:
     void onChatSelected(QWidget *chatWidget);
     void onChatRemoved(QWidget *chatWidget);
+    void onManageConnections();
 
+private:
+    void setupMenuBar();
+    
 private:
     QHBoxLayout *mainLayout;
     QWidget *chatContainer;
     QWidget *centralWidget;
     SettingsManager *settingsManager;
+    LLMConnectionModel *m_connectionModel;
+    QMenu *m_toolsMenu;
 };

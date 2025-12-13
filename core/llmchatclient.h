@@ -54,7 +54,7 @@ signals:
     void errorOccurred(const QString &error);
     void networkError(QNetworkReply::NetworkError error, const QString &message);
     void streamCompleted();
-    void toolRequest(const ChatMessage::ToolEntry &tool);
+    void toolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);
 
 private slots:
     void onFinished(QNetworkReply *reply);

@@ -161,7 +161,7 @@ inline void ChatPanelWidget::createFileListWidget(QVBoxLayout *mainLayout)
     fileListWidget->setObjectName("fileListWidget");
     fileListWidget->setModel(fileListModel);
     fileListWidget->setSizePolicy(QSizePolicy::Policy::MinimumExpanding, QSizePolicy::Policy::Minimum);
-    fileListWidget->setMaximumHeight(180);
+    fileListWidget->setMaximumHeight(100);
     fileListWidget->setVisible(false);
     mainLayout->addWidget(fileListWidget);
 }
@@ -241,8 +241,6 @@ inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
 inline void ChatPanelWidget::createAttachButton(QHBoxLayout *buttonLayout)
 {
     AttachButton *attachButton = new AttachButton(tr("Attach"), this);
-    attachButton->setMinimumHeight(24);
-    attachButton->setMinimumWidth(90);
     buttonLayout->addWidget(attachButton);
 
     connect(attachButton, &AttachButton::clicked, this, [this]() {
@@ -280,8 +278,7 @@ inline void ChatPanelWidget::createAttachButton(QHBoxLayout *buttonLayout)
 inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
 {
     QPushButton *toolsButton = new QPushButton(tr("Tools"), this);
-    toolsButton->setMinimumHeight(24);
-    toolsButton->setMinimumWidth(90);
+    toolsButton->setEnabled(toolModel->rowCount() > 0);
     buttonLayout->addWidget(toolsButton);
 
     connect(toolsButton, &QPushButton::clicked, this, [this]() {
@@ -292,7 +289,7 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
             toolsWindow->setWindowTitle(qApp->applicationDisplayName() + " - Tools");
             toolsWindow->setWindowIcon(QIcon(":/assets/eofaichat.png"));
             // Set window properties
-            toolsWindow->setFixedSize(340, 410);
+            toolsWindow->setFixedSize(380, 420);
             toolsWindow->resize(toolsWindow->size());
             // Create the ToolsWidget
             ToolsWidget *toolsWidget = new ToolsWidget(toolModel, toolsWindow);
@@ -323,8 +320,6 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
 inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
 {
     sendButton = new QPushButton(tr("Send"), this);
-    sendButton->setMinimumHeight(24);
-    sendButton->setMinimumWidth(90);
     buttonLayout->addWidget(sendButton);
 
     connect(sendButton, &QPushButton::clicked, this, [this]() {
@@ -506,7 +501,7 @@ void ChatPanelWidget::keyPressEvent(QKeyEvent *event)
 }
 
 // ---------------- Chat Tooling Events ----------------
-void ChatPanelWidget::onToolRequest(const ChatMessage::ToolEntry &tool)
+void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool)
 {
     const ToolService toolService(this);
     const QString llmId = llmclient->activeModel().id;
@@ -536,13 +531,22 @@ void ChatPanelWidget::onToolRequest(const ChatMessage::ToolEntry &tool)
             break;
         }
     }
-    if (!result.isEmpty()) {
-        llmclient->sendChat(llmId, QJsonDocument(result).toJson(QJsonDocument::Compact), true);
-    } else {
-        const QJsonObject error = toolService.createErrorResponse( //
+    if (result.isEmpty()) {
+        result = toolService.createErrorResponse( //
             QStringLiteral("Tool '%1' does not produce any results.").arg(tool.functionName()));
-        llmclient->sendChat(llmId, QJsonDocument(error).toJson(QJsonDocument::Compact), true);
     }
+
+    QJsonObject response;
+    QByteArray buffer = QJsonDocument(result).toJson(QJsonDocument::Compact);
+    response["model"] = llmclient->activeModel().id;
+    response["prompt"] = QJsonValue(QString(buffer));
+    response["max_length"] = buffer.length();
+    response["temperature"] = QJsonValue(0.7f);
+    response["top_p"] = QJsonValue(0.9f);
+    response["n"] = QJsonValue(1);
+    response["stop"] = QJsonArray() << "tools_call" << "text" << "content" << "}";
+
+    llmclient->sendChat(llmId, QJsonDocument(response).toJson(QJsonDocument::Compact), true);
 
     ChatMessage cm(chatModel);
     cm.setRole(ChatMessage::Role::SystemRole);
@@ -550,7 +554,7 @@ void ChatPanelWidget::onToolRequest(const ChatMessage::ToolEntry &tool)
     cm.setSystemFingerprint(cm.id());
     cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
     cm.setModel(llmclient->activeModel().id);
-    cm.setContent(tr("Tool(%1) #%2 %3 completed.") //
+    cm.setContent(tr("Tool(%1) #%2 %3 completed.\n") //
                       .arg(tool.toolType())
                       .arg(tool.toolCallId(), tool.functionName()));
     chatModel->addMessage(cm);
