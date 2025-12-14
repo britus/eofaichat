@@ -2,18 +2,50 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleAllowMixedLocalizations</key>
+	<key>CFBundleAllowMixedLocalizations</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>EoF Smart AI Chat</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeIconFile</key>
+			<string>icon_256x256</string>
+			<key>CFBundleTypeIconFiles</key>
+			<array>
+				<string>icon_16x16.png</string>
+				<string>icon_16x16@2x.png</string>
+				<string>icon_32x32.png</string>
+				<string>icon_32x32@2x.png</string>
+				<string>icon_128x128.png</string>
+				<string>icon_128x128@2x.png</string>
+				<string>icon_256x256.png</string>
+				<string>icon_256x256@2x.png</string>
+				<string>icon_512x512.png</string>
+				<string>icon_512x512@2x.png</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>EoF Smart AI Chat</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>org.eof.tools.smartaichat.sac</string>
+			</array>
+			<key>NSDocumentClass</key>
+			<string>NSDocument</string>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>eofaichat</string>
 	<key>CFBundleIconFile</key>
 	<string>eofaichat.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.eof.tools.smartaichat</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -24,8 +56,8 @@
 	<string>18</string>
 	<key>CFBundleURLTypes</key>
 	<array>
-	    <dict>
-		    <key>CFBundleTypeRole</key>
+		<dict>
+			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLIconFile</key>
 			<string>icon_512x512@2x.png</string>
@@ -33,7 +65,7 @@
 			<string>EoF Smart AI Chat Profiles</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-			    <string>sac</string>
+				<string>sac</string>
 			</array>
 		</dict>
 	</array>
@@ -67,7 +99,7 @@
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
-	    <string>fetch</string>
+		<string>fetch</string>
 		<string>processing</string>
 	</array>
 	<key>UILaunchImageFile</key>
@@ -76,14 +108,14 @@
 	<false/>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
-	    <dict>
-		    <key>UTTypeDescription</key>
+		<dict>
+			<key>UTTypeDescription</key>
 			<string>EoF Smart AI Chat</string>
 			<key>UTTypeIconFile</key>
 			<string>icon_512x512@2x.png</string>
 			<key>UTTypeIcons</key>
 			<dict>
-			    <key>UTTypeIconBackgroundName</key>
+				<key>UTTypeIconBackgroundName</key>
 				<string>icon_512x512@2x.png</string>
 				<key>UTTypeIconBadgeName</key>
 				<string>icon_512x512@2x.png</string>
@@ -92,23 +124,23 @@
 			<string>org.eof.tools.smartaichat.sac</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
-			    <key>public.filename-extension</key>
+				<key>public.filename-extension</key>
 				<array>
-				    <string>sac</string>
+					<string>sac</string>
 				</array>
 			</dict>
 		</dict>
 	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
-	    <dict>
-		    <key>UTTypeDescription</key>
+		<dict>
+			<key>UTTypeDescription</key>
 			<string>EoF Smart AI Chat</string>
 			<key>UTTypeIconFile</key>
 			<string>icon_512x512@2x.png</string>
 			<key>UTTypeIcons</key>
 			<dict>
-			    <key>UTTypeIconBackgroundName</key>
+				<key>UTTypeIconBackgroundName</key>
 				<string>icon_512x512@2x.png</string>
 				<key>UTTypeIconBadgeName</key>
 				<string>icon_512x512@2x.png</string>
@@ -117,43 +149,11 @@
 			<string>org.eof.tools.smartaichat.sac</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
-			    <key>public.filename-extension</key>
+				<key>public.filename-extension</key>
 				<array>
-				    <string>sac</string>
+					<string>sac</string>
 				</array>
 			</dict>
-		</dict>
-	</array>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-	    <dict>
-		    <key>CFBundleTypeIconFile</key>
-			<string>icon_256x256</string>
-			<key>CFBundleTypeIconFiles</key>
-			<array>
-			    <string>icon_16x16.png</string>
-				<string>icon_16x16@2x.png</string>
-				<string>icon_32x32.png</string>
-				<string>icon_32x32@2x.png</string>
-				<string>icon_128x128.png</string>
-				<string>icon_128x128@2x.png</string>
-				<string>icon_256x256.png</string>
-				<string>icon_256x256@2x.png</string>
-				<string>icon_512x512.png</string>
-				<string>icon_512x512@2x.png</string>
-			</array>
-			<key>CFBundleTypeName</key>
-			<string>EoF Smart AI Chat</string>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>LSHandlerRank</key>
-			<string>Default</string>
-			<key>LSItemContentTypes</key>
-			<array>
-			    <string>org.eof.tools.smartaichat.sac</string>
-			</array>
-			<key>NSDocumentClass</key>
-			<string>NSDocument</string>
 		</dict>
 	</array>
 </dict>

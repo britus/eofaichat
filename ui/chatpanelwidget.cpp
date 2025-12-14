@@ -38,15 +38,14 @@
 #include <QUuid>
 #include <QVBoxLayout>
 
-ChatPanelWidget::ChatPanelWidget(QWidget *parent)
+ChatPanelWidget::ChatPanelWidget(SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent)
     : QWidget(parent)
-    , chatModel(new ChatModel(this))
-    , syntaxModel(new SyntaxColorModel(this))
+    , llmclient(new LLMChatClient(tModel, new ChatModel(this), this))
+    , syntaxModel(scModel)
+    , toolModel(tModel)
     , fileListModel(new FileListModel(this))
-    , toolModel(new ToolModel(this))
-{
-    llmclient = new LLMChatClient(toolModel, chatModel, this);
 
+{
     // fixed layout height
     setMinimumHeight(640);
 
@@ -120,14 +119,14 @@ void ChatPanelWidget::onUpdateChatText(int index, ChatMessage *message, bool rem
 
 inline void ChatPanelWidget::connectChatModel()
 {
-    connect(chatModel, &ChatModel::messageAdded, this, [this](ChatMessage *message) { //
+    connect(llmclient->chatModel(), &ChatModel::messageAdded, this, [this](ChatMessage *message) { //
         onUpdateChatText(-1, message);
     });
-    connect(chatModel, &ChatModel::messageChanged, this, [this](int index, ChatMessage *message) { //
+    connect(llmclient->chatModel(), &ChatModel::messageChanged, this, [this](int index, ChatMessage *message) { //
         onUpdateChatText(index, message);
     });
-    connect(chatModel, &ChatModel::messageRemoved, this, [this](int index) { //
-        onUpdateChatText(index, chatModel->messageAt(index), true);
+    connect(llmclient->chatModel(), &ChatModel::messageRemoved, this, [this](int index) { //
+        onUpdateChatText(index, llmclient->chatModel()->messageAt(index), true);
     });
 }
 
@@ -302,7 +301,7 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
     });
 
     // Tools, Resource, Prompts configuration
-    connect(toolModel, &ToolModel::toolAdded, this, [this, toolsButton](const ToolModel::ToolEntry &entry) { //
+    connect(toolModel, &ToolModel::toolAdded, this, [this, toolsButton](const ToolModel::ToolModelEntry &entry) { //
         qDebug("Tool config type %d added: %s", entry.type, qPrintable(entry.name));
         toolsButton->setEnabled(toolModel->hasExecutables()  //
                                 || toolModel->hasResources() //
@@ -323,28 +322,41 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
     buttonLayout->addWidget(sendButton);
 
     connect(sendButton, &QPushButton::clicked, this, [this]() {
-        QString text = messageInput->toPlainText().trimmed();
-        if (text.isEmpty())
+        QByteArray question = messageInput->toPlainText().trimmed().toUtf8();
+        if (question.isEmpty())
             return;
 
+        // app new conversation
+        QByteArray text;
+        text.append(question);
+
+        // load previous chat messages
+        QByteArray previusChat = llmclient->chatModel()->chatContent();
+        if (previusChat.length() > 0) {
+            text.append("#Previous conversation:\n");
+            text.append(previusChat);
+        }
+
+        // load file attachments
         if (fileListModel->rowCount() > 0) {
             QByteArray content;
+            text.append("#Attached files:\n");
             fileListModel->loadContentOfFiles(content);
             if (!content.isEmpty()) {
-                text = text.append("\r\n");
+                text = text.append("\n");
                 text = text.append(content);
             }
         }
 
-        // Add sender bubble using ChatTextWidget
-        ChatMessage cm(chatModel);
-        cm.setContent(text);
+        // Add sender bubble
+        ChatMessage cm(llmclient->chatModel());
+        cm.setContent(question);
         cm.setRole(ChatMessage::Role::ChatRole);
         cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
         cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
         cm.setModel(llmclient->activeModel().id);
-        chatModel->addMessage(cm);
+        llmclient->chatModel()->addMessage(cm);
 
         // Clear input
         messageInput->clear();
@@ -354,7 +366,7 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
         onShowProgressPopup();
 
         // Send JSON for network layer
-        llmclient->sendChat(cm.model(), text);
+        llmclient->sendChat(cm.model(), text, true);
     });
 }
 
@@ -364,26 +376,26 @@ inline void ChatPanelWidget::connectLLMClient()
     connect(llmclient, &LLMChatClient::streamCompleted, this, &ChatPanelWidget::onHideProgressPopup, Qt::QueuedConnection);
     connect(llmclient, &LLMChatClient::networkError, this, [this](QNetworkReply::NetworkError error, const QString &message) {
         qCritical().noquote() << "[ChatPanelWidget]" << message << error;
-        ChatMessage cm(chatModel);
+        ChatMessage cm(llmclient->chatModel());
         cm.setRole(ChatMessage::Role::AssistantRole);
         cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
         cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
         cm.setModel(llmclient->activeModel().id);
         cm.setContent(QStringLiteral("Error: %1\n%2").arg(error).arg(message));
-        chatModel->addMessage(cm);
+        llmclient->chatModel()->addMessage(cm);
         onHideProgressPopup();
     });
     connect(llmclient, &LLMChatClient::errorOccurred, this, [this](const QString &error) {
         qCritical().noquote() << "[ChatPanelWidget]" << error;
-        ChatMessage cm(chatModel);
+        ChatMessage cm(llmclient->chatModel());
         cm.setRole(ChatMessage::Role::AssistantRole);
         cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
         cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
         cm.setModel(llmclient->activeModel().id);
         cm.setContent(error);
-        chatModel->addMessage(cm);
+        llmclient->chatModel()->addMessage(cm);
         onHideProgressPopup();
     });
 }
@@ -501,61 +513,111 @@ void ChatPanelWidget::keyPressEvent(QKeyEvent *event)
 }
 
 // ---------------- Chat Tooling Events ----------------
-void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool)
+void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::ToolEntry &toolCall)
 {
-    const ToolService toolService(this);
-    const QString llmId = llmclient->activeModel().id;
+    ToolService toolService(this);
+    ToolModel::ToolModelEntry tool;
+    QJsonObject result;
+    QByteArray buffer;
+
+    QString llmId = llmclient->activeModel().id;
     if (llmId.isEmpty()) {
         qCritical().noquote() << "[LLMChatClient] No LLM is activated.";
         return;
     }
 
-    qDebug().noquote() << "[LLMChatClient] onToolRequest type:" //
-                       << tool.toolType()                       //
-                       << "id:" << tool.toolCallId()            //
-                       << "function:" << tool.functionName();
+    qDebug().noquote() << "[LLMChatClient] onToolRequest type:"  //
+                       << toolCall.toolType()                    //
+                       << "id:" << toolCall.toolCallId()         //
+                       << "function:" << toolCall.functionName() //
+                       << "args:" << toolCall.arguments();
 
-    QJsonObject result;
-    switch (tool.toolType()) {
-        case ChatMessage::ToolType::Tool:
+    if (toolCall.functionName().isEmpty()) {
+        result = toolService.createErrorResponse( //
+            QStringLiteral("The function name is required."));
+        goto finish;
+    }
+
+    tool = toolModel->toolByName(toolCall.functionName());
+    if (tool.name.isEmpty()) {
+        result = toolService.createErrorResponse( //
+            QStringLiteral("Unable to find function: %1").arg(toolCall.functionName()));
+        goto finish;
+    }
+
+    switch (toolCall.toolType()) {
         case ChatMessage::ToolType::Function: {
-            result = toolService.execute(toolModel, tool.functionName(), tool.arguments());
+            result = toolService.execute(tool, toolCall.arguments());
             break;
         }
         case ChatMessage::ToolType::Resuource: {
-            result = toolService.execute(toolModel, tool.functionName(), tool.arguments());
+            result = toolService.execute(tool, toolCall.arguments());
             break;
         }
         case ChatMessage::ToolType::Prompt: {
-            result = toolService.execute(toolModel, tool.functionName(), tool.arguments());
+            result = toolService.execute(tool, toolCall.arguments());
+            break;
+        }
+        default: {
+            result = toolService.createErrorResponse( //
+                QStringLiteral("Invalid tool type in function: %1").arg(toolCall.functionName()));
+            goto finish;
             break;
         }
     }
+
     if (result.isEmpty()) {
         result = toolService.createErrorResponse( //
-            QStringLiteral("Tool '%1' does not produce any results.").arg(tool.functionName()));
+            QStringLiteral("Tool '%1' does not produce any results.").arg(toolCall.functionName()));
     }
 
+    if (result.contains("structuredContent")) {
+        result = result["structuredContent"].toObject();
+    } else if (result.contains("content")) {
+        QJsonValue contentValue = result["content"];
+        if (contentValue.isArray()) {
+            QJsonArray items = contentValue.toArray();
+            if (!items.isEmpty() && items[0].isObject()) {
+                QJsonObject itemObject = items[0].toObject();
+                result = itemObject;
+                // --
+                //if (itemObject.contains("text")) {
+                //    buffer = itemObject["text"].toString().toUtf8();
+                //}
+            }
+        }
+    }
+
+finish:
+    if (buffer.isEmpty()) {
+        buffer = QJsonDocument(result).toJson(QJsonDocument::Indented);
+    }
+
+#if 0
     QJsonObject response;
-    QByteArray buffer = QJsonDocument(result).toJson(QJsonDocument::Compact);
     response["model"] = llmclient->activeModel().id;
-    response["prompt"] = QJsonValue(QString(buffer));
-    response["max_length"] = buffer.length();
+    response["prompt"] = "```json\n" + QString(buffer) + "\n```\n";
+    response["max_length"] = response["prompt"].toString().length();
     response["temperature"] = QJsonValue(0.7f);
     response["top_p"] = QJsonValue(0.9f);
     response["n"] = QJsonValue(1);
-    response["stop"] = QJsonArray() << "tools_call" << "text" << "content" << "}";
+    response["stop"] = QJsonValue::Null; //QJsonArray() << "tools_call" << "text" << "content" << "}";
 
     llmclient->sendChat(llmId, QJsonDocument(response).toJson(QJsonDocument::Compact), true);
+#else
+    llmclient->sendChat(llmId, buffer, true);
+#endif
 
-    ChatMessage cm(chatModel);
+    ChatMessage cm(llmclient->chatModel());
     cm.setRole(ChatMessage::Role::SystemRole);
-    cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+    cm.setId(QStringLiteral("CPW-%1").arg(message->id()));
     cm.setSystemFingerprint(cm.id());
     cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
     cm.setModel(llmclient->activeModel().id);
-    cm.setContent(tr("Tool(%1) #%2 %3 completed.\n") //
-                      .arg(tool.toolType())
-                      .arg(tool.toolCallId(), tool.functionName()));
-    chatModel->addMessage(cm);
+    cm.setContent(tr("%1\nTool(%2:%3:%4) call completed.\n") //
+                      .arg(buffer)
+                      .arg(toolCall.toolType())
+                      .arg(toolCall.toolCallId(), //
+                           toolCall.functionName()));
+    llmclient->chatModel()->addMessage(cm);
 }

@@ -106,7 +106,7 @@ void ChatModel::clear()
     endResetModel();
 }
 
-void ChatModel::addMessage(const ChatMessage &message)
+ChatMessage *ChatModel::addMessage(const ChatMessage &message)
 {
     ChatMessage *cm = new ChatMessage(message);
 
@@ -115,11 +115,27 @@ void ChatModel::addMessage(const ChatMessage &message)
     endInsertRows();
 
     emit messageAdded(cm);
+    return cm;
 }
 
-void ChatModel::addMessageFromJson(const QJsonObject &json)
+ChatMessage *ChatModel::addMessage(ChatMessage *message)
 {
-    addMessage(ChatMessage(json, this));
+    beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
+    m_messages.append(message);
+    endInsertRows();
+
+    emit messageAdded(message);
+    return message;
+}
+
+QByteArray ChatModel::chatContent() const
+{
+    QByteArray result;
+    foreach (ChatMessage *message, m_messages) {
+        result.append(message->content().toUtf8());
+        result.append("\n");
+    }
+    return result;
 }
 
 ChatMessage *ChatModel::messageById(const QString &id)

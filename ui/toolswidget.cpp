@@ -37,12 +37,12 @@ void ToolsWidget::populateToolBox()
         m_toolBox->removeItem(0);
 
     // Create pages for each tool type
-    m_toolBox->addItem(createToolPage(ToolModel::Tool), tr("☞ Tools"));
-    m_toolBox->addItem(createToolPage(ToolModel::Resource), tr("☞ Resources"));
-    m_toolBox->addItem(createToolPage(ToolModel::Prompt), tr("☞ Prompts"));
+    m_toolBox->addItem(createToolPage(ToolModel::ToolModelType::ToolFunction), tr("☞ Tools"));
+    m_toolBox->addItem(createToolPage(ToolModel::ToolModelType::ToolResource), tr("☞ Resources"));
+    m_toolBox->addItem(createToolPage(ToolModel::ToolModelType::ToolPrompt), tr("☞ Prompts"));
 }
 
-QWidget *ToolsWidget::createToolPage(ToolModel::ToolType type)
+QWidget *ToolsWidget::createToolPage(ToolModel::ToolModelType type)
 {
     // Create a scroll area to hold all the tool items
     QWidget *pageWidget = new QWidget();
@@ -69,7 +69,7 @@ QWidget *ToolsWidget::createToolPage(ToolModel::ToolType type)
         for (int i = 0; i < m_model->rowCount(); ++i) {
             QModelIndex index = m_model->index(i);
             QVariant v = m_model->data(index, ToolModel::TypeRole);
-            ToolModel::ToolType entryType = v.value<ToolModel::ToolType>();
+            ToolModel::ToolModelType entryType = v.value<ToolModel::ToolModelType>();
             if (entryType == type) {
                 QWidget *toolItem = createToolItem(i);
                 containerLayout->addWidget(toolItem);
@@ -140,7 +140,9 @@ QWidget *ToolsWidget::createToolItem(int index)
     layout->setContentsMargins(0, 0, 0, 0);
 
     // Checkbox for enabling/disabling tool
+    QString toolTip = m_model->data(m_model->index(index), ToolModel::DescriptionRole).toString();
     QCheckBox *checkBox = new QCheckBox(widget);
+    checkBox->setToolTip(toolTip);
     // Store the index with the checkbox for later use
     checkBox->setProperty("toolIndex", index);
     QVariant vopt = m_model->data(m_model->index(index), ToolModel::OptionRole);
@@ -152,7 +154,8 @@ QWidget *ToolsWidget::createToolItem(int index)
                                        ? Qt::CheckState::PartiallyChecked
                                        : Qt::CheckState::Unchecked));
     // Label for tool name
-    QLabel *nameLabel = new QLabel(m_model->data(m_model->index(index), ToolModel::NameRole).toString(), widget);
+    QString title = m_model->data(m_model->index(index), ToolModel::TitleRole).toString();
+    QLabel *nameLabel = new QLabel(title, widget);
 
     // Tool button with popup menu
     QToolButton *toolButton = new QToolButton(widget);
@@ -169,7 +172,7 @@ QWidget *ToolsWidget::createToolItem(int index)
     askBeforeRunAction->setCheckable(true);
     askBeforeRunAction->setChecked(option == ToolModel::AskBeforeRun);
 
-    connect(allowAction, &QAction::triggered, [this, checkBox, allowAction, askBeforeRunAction, index](bool checked) { //
+    connect(allowAction, &QAction::triggered, [this, checkBox, allowAction, askBeforeRunAction, index](bool checked) {
         updateToolOption(index, ToolModel::ToolEnabled);
         allowAction->setChecked(checked);
         if (checked) {
@@ -178,7 +181,7 @@ QWidget *ToolsWidget::createToolItem(int index)
         checkBox->setCheckState(checked ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
     });
 
-    connect(askBeforeRunAction, &QAction::triggered, [this, checkBox, allowAction, askBeforeRunAction, index](bool checked) { //
+    connect(askBeforeRunAction, &QAction::triggered, [this, checkBox, allowAction, askBeforeRunAction, index](bool checked) {
         updateToolOption(index, ToolModel::AskBeforeRun);
         askBeforeRunAction->setChecked(checked);
         if (checked) {

@@ -23,10 +23,10 @@ bool ToolModel::setData(const QModelIndex &index, const QVariant &value, int rol
     if (!index.isValid() || index.row() >= m_toolEntries.size())
         return false;
 
-    ToolEntry &entry = m_toolEntries[index.row()];
+    ToolModelEntry &entry = m_toolEntries[index.row()];
     switch (role) {
         case Qt::UserRole:
-            entry = value.value<ToolEntry>();
+            entry = value.value<ToolModelEntry>();
         case ToolRole:
             entry.tool = value.value<QJsonObject>();
         case NameRole:
@@ -34,7 +34,15 @@ bool ToolModel::setData(const QModelIndex &index, const QVariant &value, int rol
         case OptionRole:
             entry.option = value.value<ToolOption>();
         case TypeRole:
-            entry.type = value.value<ToolType>();
+            entry.type = value.value<ToolModelType>();
+        case DescriptionRole:
+            entry.description = value.value<QString>();
+        case TitleRole:
+            entry.title = value.value<QString>();
+        case ExecHandlerRole:
+            entry.execHandler = value.value<QString>();
+        case ExecMethodRole:
+            entry.execMethod = value.value<QString>();
         default: {
             return false;
         }
@@ -50,7 +58,7 @@ QVariant ToolModel::data(const QModelIndex &index, int role) const
     if (!index.isValid() || index.row() >= m_toolEntries.size())
         return QVariant();
 
-    const ToolEntry &entry = m_toolEntries[index.row()];
+    const ToolModelEntry &entry = m_toolEntries[index.row()];
 
     switch (role) {
         case Qt::UserRole:
@@ -63,6 +71,14 @@ QVariant ToolModel::data(const QModelIndex &index, int role) const
             return entry.option;
         case TypeRole:
             return entry.type;
+        case DescriptionRole:
+            return entry.description;
+        case TitleRole:
+            return entry.title;
+        case ExecHandlerRole:
+            return entry.execHandler;
+        case ExecMethodRole:
+            return entry.execMethod;
         default:
             return QVariant();
     }
@@ -75,10 +91,14 @@ QHash<int, QByteArray> ToolModel::roleNames() const
     roles[NameRole] = "name";
     roles[OptionRole] = "option";
     roles[TypeRole] = "type";
+    roles[DescriptionRole] = "description";
+    roles[TitleRole] = "title";
+    roles[ExecHandlerRole] = "execHandler";
+    roles[ExecMethodRole] = "execMethod";
     return roles;
 }
 
-void ToolModel::loadFromDirectory(const QFileInfo &fileInfo, ToolType type)
+void ToolModel::loadFromDirectory(const QFileInfo &fileInfo, ToolModelType type)
 {
     QFile file(fileInfo.absoluteFilePath());
     if (file.open(QIODevice::ReadOnly)) {
@@ -87,17 +107,20 @@ void ToolModel::loadFromDirectory(const QFileInfo &fileInfo, ToolType type)
         QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &error);
         if (!doc.isNull() && doc.isObject()) {
             QJsonObject jsonObject = doc.object();
-            ToolEntry entry;
+            ToolModelEntry entry;
             entry.tool = jsonObject;
-            entry.name = fi.baseName();
+            entry.name = jsonObject["name"].toString(fi.baseName());
+            entry.title = jsonObject["title"].toString(fi.baseName());
+            entry.description = jsonObject["description"].toString(fi.baseName());
+            entry.execHandler = jsonObject["execHandler"].toString("");
+            entry.execMethod = jsonObject["execMethod"].toString("");
             entry.option = ToolDisabled; // Default value
             entry.type = type;
-
             addToolEntry(entry);
         } else {
-            qWarning().noquote() << "[ToolModel] loadFromDirectory:" //
-                                 << error.errorString()              //
-                                 << "Invalid JSON file:" << file.fileName();
+            qWarning().noquote() << "[ToolModel] loadFromDirectory:"                //
+                                 << "Invalid JSON file:" << file.fileName() << "\n" //
+                                 << error.errorString();
         }
         file.close();
     }
@@ -106,7 +129,7 @@ void ToolModel::loadFromDirectory(const QFileInfo &fileInfo, ToolType type)
 QList<QJsonObject> ToolModel::toolObjects() const
 {
     QList<QJsonObject> result;
-    for (const ToolEntry &entry : m_toolEntries) {
+    for (const ToolModelEntry &entry : m_toolEntries) {
         if (entry.option == ToolEnabled || entry.option == AskBeforeRun) {
             result.append(entry.tool);
         }
@@ -114,20 +137,25 @@ QList<QJsonObject> ToolModel::toolObjects() const
     return result;
 }
 
-ToolModel::ToolEntry ToolModel::toolByName(const QString &name) const
+static inline bool isSameName(const QString &name1, const QString &name2)
 {
-    foreach (const ToolEntry &entry, m_toolEntries) {
-        QString ename = entry.name;
-        ename = ename.replace("-", "_");
-        ename = ename.replace(" ", "_");
-        ename = ename.toLower().trimmed();
+    QString ename = name1;
+    ename = ename.replace("-", "_");
+    ename = ename.replace(" ", "_");
+    ename = ename.toLower().trimmed();
 
-        QString rname = name;
-        rname = rname.replace("-", "_");
-        rname = rname.replace(" ", "_");
-        rname = rname.toLower().trimmed();
+    QString rname = name2;
+    rname = rname.replace("-", "_");
+    rname = rname.replace(" ", "_");
+    rname = rname.toLower().trimmed();
 
-        if (rname.contains(ename)) {
+    return rname.contains(ename);
+}
+
+ToolModel::ToolModelEntry ToolModel::toolByName(const QString &name) const
+{
+    foreach (const ToolModelEntry &entry, m_toolEntries) {
+        if (isSameName(entry.name, name)) {
             return entry;
         }
     }
@@ -136,15 +164,15 @@ ToolModel::ToolEntry ToolModel::toolByName(const QString &name) const
 
 QJsonObject ToolModel::toolObject(const QString &name) const
 {
-    for (const ToolEntry &entry : m_toolEntries) {
-        if (entry.name == name) {
+    for (const ToolModelEntry &entry : m_toolEntries) {
+        if (isSameName(entry.name, name)) {
             return entry.tool;
         }
     }
     return QJsonObject();
 }
 
-void ToolModel::addToolEntry(const ToolEntry &entry)
+void ToolModel::addToolEntry(const ToolModelEntry &entry)
 {
     int index = m_toolEntries.size();
     beginInsertRows(QModelIndex(), index, index);
@@ -167,7 +195,7 @@ void ToolModel::removeToolEntry(int index)
     emit toolRemoved(index);
 }
 
-inline bool ToolModel::createConfigPath(const QDir &dir) const
+inline bool ToolModel::createDirectory(const QDir &dir) const
 {
     if (!dir.exists()) {
         QFile::Permissions permissions;
@@ -192,7 +220,7 @@ inline QDir ToolModel::configDirectory(const QString &pathName) const
 
     // fallback to internal resource
     if (!QFileInfo::exists(dir.absoluteFilePath(pathName))) {
-        if (!createConfigPath(dir.absoluteFilePath(pathName))) {
+        if (!createDirectory(dir.absoluteFilePath(pathName))) {
             return QDir(QStringLiteral(":/cfg")).absoluteFilePath(pathName);
         }
     }
@@ -204,7 +232,7 @@ bool ToolModel::deployResourceFiles(const QString &resourcePath, const QDir &tar
 {
     // Ensure target directory exists
     if (!targetDir.exists()) {
-        if (!createConfigPath(targetDir)) {
+        if (!createDirectory(targetDir)) {
             qCritical() << "[ToolModel] Failed to create target directory:" << targetDir.absolutePath();
             return false;
         }
@@ -250,7 +278,14 @@ bool ToolModel::deployResourceFiles(const QString &resourcePath, const QDir &tar
         } else {
             // Handle files
             QFile sourceFile(sourceFilePath);
+            QFileInfo sfi(sourceFile.fileName());
             QFile targetFile(targetFilePath);
+            QFileInfo tfi(targetFile.fileName());
+
+            // skip existing newer files
+            if (sfi.lastModified() < tfi.lastModified()) {
+                continue;
+            }
 
             // Remove existing file if it exists
             if (targetFile.exists()) {
@@ -319,7 +354,7 @@ bool ToolModel::copyDirectoryRecursively(const QString &sourceDirPath, const QSt
     return true;
 }
 
-inline void ToolModel::loadToolsConfig(const QString &subPath, ToolType type)
+inline void ToolModel::loadToolsConfig(const QString &subPath, ToolModelType type)
 {
     QDir::Filters filters = QDir::Files | QDir::Readable | QDir::AllDirs | QDir::NoDotAndDotDot;
     QDir configDir = configDirectory(subPath);
@@ -327,7 +362,10 @@ inline void ToolModel::loadToolsConfig(const QString &subPath, ToolType type)
 
     // write internal tools configuation to app configuration directory
     if (!configDir.absolutePath().startsWith(":")) {
-        deployResourceFiles(QStringLiteral(":/cfg/%1").arg(subPath), configDir);
+        if (!deployResourceFiles(QStringLiteral(":/cfg/%1").arg(subPath), configDir)) {
+            qCritical("Unable to deploy tooling: %s", qPrintable(configDir.absolutePath()));
+            return;
+        }
     }
 
     // get tool configuration files
@@ -342,17 +380,17 @@ inline void ToolModel::loadToolsConfig(const QString &subPath, ToolType type)
 void ToolModel::loadToolsConfig()
 {
     // Executable tools
-    loadToolsConfig(QStringLiteral("Tools"), Tool);
+    loadToolsConfig(QStringLiteral("Tools"), ToolModel::ToolFunction);
     // Known resources
-    loadToolsConfig(QStringLiteral("Resources"), Resource);
+    loadToolsConfig(QStringLiteral("Resources"), ToolModel::ToolResource);
     // Prompts
-    loadToolsConfig(QStringLiteral("Prompts"), Prompt);
+    loadToolsConfig(QStringLiteral("Prompts"), ToolModel::ToolPrompt);
 }
 
 bool ToolModel::hasExecutables() const
 {
-    for (const ToolEntry &entry : m_toolEntries) {
-        if (entry.type == Tool)
+    for (const ToolModelEntry &entry : m_toolEntries) {
+        if (entry.type == ToolModelType::ToolFunction)
             return true;
     }
     return false;
@@ -360,8 +398,8 @@ bool ToolModel::hasExecutables() const
 
 bool ToolModel::hasResources() const
 {
-    for (const ToolEntry &entry : m_toolEntries) {
-        if (entry.type == Resource)
+    for (const ToolModelEntry &entry : m_toolEntries) {
+        if (entry.type == ToolModelType::ToolResource)
             return true;
     }
     return false;
@@ -369,8 +407,8 @@ bool ToolModel::hasResources() const
 
 bool ToolModel::hasPrompts() const
 {
-    for (const ToolEntry &entry : m_toolEntries) {
-        if (entry.type == Prompt)
+    for (const ToolModelEntry &entry : m_toolEntries) {
+        if (entry.type == ToolModelType::ToolPrompt)
             return true;
     }
     return false;

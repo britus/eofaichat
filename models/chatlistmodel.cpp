@@ -1,5 +1,6 @@
 #include <chatpanelwidget.h>
 #include <leftpanelwidget.h>
+#include <mainwindow.h>
 #include <QApplication>
 #include <QInputDialog>
 #include <QLabel>
@@ -74,15 +75,11 @@ Qt::ItemFlags ChatListModel::flags(const QModelIndex &index) const
     return QAbstractItemModel::flags(index) | Qt::ItemIsEditable;
 }
 
-void ChatListModel::addChat(const QString &name)
+void ChatListModel::addChat(const QString &name, ChatPanelWidget *widget)
 {
-    LeftPanelWidget *lpw;
-    if ((lpw = qobject_cast<LeftPanelWidget *>(QObject::parent()))) {
-        beginInsertRows(QModelIndex(), m_chats.size(), m_chats.size());
-        ChatPanelWidget *newWidget = new ChatPanelWidget(lpw);
-        m_chats.append(ChatData(name, newWidget));
-        endInsertRows();
-    }
+    beginInsertRows(QModelIndex(), m_chats.size(), m_chats.size());
+    m_chats.append(ChatData(name, widget));
+    endInsertRows();
 }
 
 void ChatListModel::removeChat(int row)

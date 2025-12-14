@@ -1,5 +1,4 @@
 #pragma once
-#include <chatpanelwidget.h>
 #include <QAbstractItemModel>
 #include <QHBoxLayout>
 #include <QListWidget>
@@ -12,6 +11,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+class ChatPanelWidget;
 class ChatListModel : public QAbstractItemModel
 {
     Q_OBJECT
@@ -40,7 +40,7 @@ public:
     Qt::ItemFlags flags(const QModelIndex &index) const override;
 
     // Custom methods
-    void addChat(const QString &name);
+    void addChat(const QString &name, ChatPanelWidget *widget);
     void removeChat(int row);
     void renameChat(int row, const QString &newName);
     ChatData *getChatData(int row) const;

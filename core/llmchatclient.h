@@ -57,7 +57,7 @@ signals:
     void toolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);
 
 private slots:
-    void onFinished(QNetworkReply *reply);
+    void onLLMResponse(QNetworkReply *reply);
     void onError(QNetworkReply::NetworkError error);
     void onSslErrors(QNetworkReply *reply, const QList<QSslError> &errors);
 
@@ -73,10 +73,17 @@ private:
     bool m_isResponseStream;
 
 private:
+    inline void reportError(const QString &message);
     inline void sendRequest(const QJsonObject &requestBody, const QString &endpoint, bool isGetMethod = false);
     inline QJsonObject buildChatCompletionRequest(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream);
+    inline bool validateValue(const QJsonValue &value, const QString &key, const QJsonValue::Type expectedType);
+    inline bool valueOf(const QJsonObject &response, const QString &key, const QJsonValue::Type expectedType, QJsonValue &value);
     inline void parseResponse(const QJsonObject &response);
     inline void parseResponse(const QByteArray &data);
+    inline bool parseChoices(ChatMessage *message, const QJsonArray &choices);
+    inline bool parseChoiceObject(ChatMessage *message, const QJsonObject &choice);
+    inline bool parseToolCalls(ChatMessage *message, const QJsonArray &toolCalls);
+    inline bool parseToolCall(const QJsonObject toolObject, ChatMessage::ToolEntry &tool) const;
     inline QJsonArray loadToolsConfig() const;
     inline void checkAndRunTooling(ChatMessage *messge);
 };

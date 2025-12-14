@@ -10,23 +10,54 @@
 ToolService::ToolService(QObject *parent)
     : QObject{parent}
 {
-    //
+#define PARAM_SIG const ToolModel::ToolModelEntry &tool, const QJsonObject &args
+
+    m_functions["display_project_files"] = [this](PARAM_SIG) -> QJsonObject const {
+        return listDirectory(tool, args);
+    };
+    m_functions["list_source_files"] = [this](PARAM_SIG) -> QJsonObject const {
+        return listDirectory(tool, args);
+    };
+
+    m_functions["read_source_file"] = [this](PARAM_SIG) -> QJsonObject const {
+        QString filePath;
+        if (args.contains("file_path") && args["file_path"].isString()) {
+            filePath = args["file_path"].toString();
+            return readSourceFile(filePath);
+        } else {
+            return createErrorResponse( //
+                QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(tool.name));
+        }
+    };
+
+    m_functions["write_source_file"] = [this](PARAM_SIG) -> QJsonObject const {
+        QString filePath;
+        if (!args.contains("file_path") || !args["file_path"].isString()) {
+            return createErrorResponse( //
+                QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(tool.name));
+        }
+        filePath = args["file_path"].toString();
+
+        QString content;
+        if (!args.contains("content") || !args["content"].isString()) {
+            return createErrorResponse( //
+                QStringLiteral("Parameter 'content' is missing in function: %1").arg(tool.name));
+        }
+        content = args["content"].toString();
+
+        bool backup = true;
+        if (!args.contains("content") || !args["content"].isBool()) {
+            backup = true;
+        } else {
+            backup = args["create_backup"].toBool();
+        }
+
+        return writeSourceFile(filePath, content.toUtf8(), backup);
+    };
 }
 
-QJsonObject ToolService::execute(const ToolModel *model, const QString &function, const QString &arguments) const
+QJsonObject ToolService::execute(const ToolModel::ToolModelEntry &tool, const QString &arguments) const
 {
-    if (function.isEmpty()) {
-        return createErrorResponse(QStringLiteral("The function name is required."));
-    }
-    if (!model) {
-        return createErrorResponse(QStringLiteral("No tool model is set.").arg(function));
-    }
-
-    ToolModel::ToolEntry tool = model->toolByName(function);
-    if (tool.name.isEmpty()) {
-        return createErrorResponse(QStringLiteral("Unable to find function: %1").arg(function));
-    }
-
     qDebug().noquote() << "[ToolService] execute type:" << tool.type //
                        << "name:" << tool.name << "args:" << arguments;
 
@@ -43,71 +74,50 @@ QJsonObject ToolService::execute(const ToolModel *model, const QString &function
         args = doc.object();
     }
 
-    QJsonObject result;
-    if (tool.name == "display_project_files" || tool.name == "list_source_files") {
-        QStringList extensions;
-        QString sortBy = "name";
-        bool recursive = true;
-        QString pathName;
-        if (args.contains("project_path") && args["project_path"].isString()) {
-            pathName = args["project_path"].toString();
-        } else if (args.contains("directory") && args["directory"].isString()) {
-            pathName = args["directory"].toString();
-        }
-        if (args.contains("recursive") && args["recursive"].isBool()) {
-            recursive = args["recursive"].toBool();
-        }
-        if (args.contains("sortBy") && args["sortBy"].isString()) {
-            sortBy = args["sortBy"].toString();
-        }
-        if (args.contains("extensions") && args["extensions"].isArray()) {
-            extensions = getFileExtensions(args["extensions"].toArray());
-        }
-        if (extensions.isEmpty()) {
-            extensions = DEFAULT_EXTENSIONS;
-        }
-        if (tool.name == "display_project_files") {
-            result = displayProjectFiles(pathName, recursive, sortBy, extensions);
-        } else if (tool.name == "list_source_files") {
-            result = listSourceFiles(pathName, extensions);
-        }
-    } else if (tool.name == "read_source_file") {
-        QString filePath;
-        if (args.contains("file_path") && args["file_path"].isString()) {
-            filePath = args["file_path"].toString();
-            result = readSourceFile(filePath);
-        } else {
-            result = createErrorResponse(QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(function));
-        }
-    } else if (tool.name == "write_source_file") {
-        QString filePath;
-        if (!args.contains("file_path") || !args["file_path"].isString()) {
-            result = createErrorResponse(QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(function));
-            goto finish;
-        }
-        filePath = args["file_path"].toString();
-
-        QString content;
-        if (!args.contains("content") || !args["content"].isString()) {
-            result = createErrorResponse(QStringLiteral("Parameter 'content' is missing in function: %1").arg(function));
-            goto finish;
-        }
-        content = args["content"].toString();
-
-        bool backup = true;
-        if (!args.contains("content") || !args["content"].isBool()) {
-            backup = true;
-        } else {
-            backup = args["create_backup"].toBool();
-        }
-
-        result = writeSourceFile(filePath, content.toUtf8(), backup);
-    } else {
-        result = tool.tool;
+    // if not listed, assume prompt or resource
+    if (!m_functions.contains(tool.name)) {
+        return tool.tool;
     }
 
-finish:
-    return result;
+    // execute tool function
+    return m_functions[tool.name](tool, args);
+}
+
+QJsonObject ToolService::listDirectory(const ToolModel::ToolModelEntry &tool, const QJsonObject &args) const
+{
+    QJsonObject result;
+    QStringList extensions;
+    QString sortBy = "name";
+    bool recursive = true;
+    QString pathName;
+
+    if (args.contains("project_path") && args["project_path"].isString()) {
+        pathName = args["project_path"].toString();
+    } else if (args.contains("directory") && args["directory"].isString()) {
+        pathName = args["directory"].toString();
+    }
+    if (args.contains("recursive") && args["recursive"].isBool()) {
+        recursive = args["recursive"].toBool();
+    }
+    if (args.contains("sortBy") && args["sortBy"].isString()) {
+        sortBy = args["sortBy"].toString();
+    }
+    if (args.contains("extensions") && args["extensions"].isArray()) {
+        extensions = getFileExtensions(args["extensions"].toArray());
+    }
+    if (extensions.isEmpty()) {
+        extensions = DEFAULT_EXTENSIONS;
+    }
+
+    if (tool.name == "display_project_files") {
+        return displayProjectFiles(pathName, recursive, sortBy, extensions);
+    }
+
+    if (tool.name == "list_source_files") {
+        return listSourceFiles(pathName, extensions);
+    }
+
+    return {};
 }
 
 QJsonObject ToolService::displayProjectFiles(const QString &projectPath, bool recursive, const QString &sortBy, const QStringList extensions) const

@@ -19,6 +19,7 @@ QT  += qmlworkerscript
 
 greaterThan(QT_MAJOR_VERSION, 5): QT += core5compat
 
+TARGET = eofaichat
 CONFIG += c++17
 
 # You can make your code fail to compile if it uses deprecated APIs.
@@ -61,6 +62,10 @@ mac {
     QMAKE_RPATHDIR += @executable_path/../lib
 
     QMAKE_INFO_PLIST = $$PWD/Info.plist
+
+    # Set the bundle identifier for macOS
+    QMAKE_BUNDLE_ID = org.eof.tools.$$TARGET
+    PRODUCT_NAME = $$TARGET
 
     #otool -L
     LIBS += -dead_strip

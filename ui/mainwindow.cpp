@@ -21,18 +21,20 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , settingsManager(new SettingsManager(this))
     , m_connectionModel(new LLMConnectionModel(this))
+    , m_syntaxModel(new SyntaxColorModel(this))
+    , m_toolModel(new ToolModel(this))
 {
     setWindowTitle(qApp->applicationDisplayName());
     setWindowIcon(QIcon(":/assets/eofaichat.png"));
     setWindowFlag(Qt::WindowType::Window, true);
     setMinimumSize(QSize(1024, 720));
 
-    centralWidget = new QWidget(this);
-    setCentralWidget(centralWidget);
+    m_centralWidget = new QWidget(this);
+    setCentralWidget(m_centralWidget);
 
-    mainLayout = new QHBoxLayout(centralWidget);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(0);
+    m_mainLayout = new QHBoxLayout(m_centralWidget);
+    m_mainLayout->setContentsMargins(0, 0, 0, 0);
+    m_mainLayout->setSpacing(0);
 
     // ---------------- Left ----------------
     auto leftPanel = new LeftPanelWidget(this);
@@ -46,11 +48,11 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(leftPanel, &LeftPanelWidget::chatSelected, this, &MainWindow::onChatSelected);
     connect(leftPanel, &LeftPanelWidget::chatRemoved, this, &MainWindow::onChatRemoved);
-    mainLayout->addWidget(leftPanel);
+    m_mainLayout->addWidget(leftPanel);
 
     // ---------------- Chat container ----------------
-    chatContainer = new QWidget(this);
-    mainLayout->addWidget(chatContainer, 1);
+    m_contentWidget = new QWidget(this);
+    m_mainLayout->addWidget(m_contentWidget, 1);
 
     QStatusBar *statusbar = new QStatusBar(this);
     statusbar->setSizeGripEnabled(true);
@@ -60,10 +62,10 @@ MainWindow::MainWindow(QWidget *parent)
     // Load window size and position
     settingsManager->loadWindowSize(this);
 
-    QSplitter *splitter = new QSplitter(Qt::Horizontal, centralWidget);
-    centralWidget->layout()->addWidget(splitter);
+    QSplitter *splitter = new QSplitter(Qt::Horizontal, m_centralWidget);
+    m_centralWidget->layout()->addWidget(splitter);
     splitter->insertWidget(0, leftPanel);
-    splitter->insertWidget(1, chatContainer);
+    splitter->insertWidget(1, m_contentWidget);
     splitter->setHandleWidth(10);
 
     // Load splitter position
@@ -76,7 +78,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupMenuBar();
 
     // Create initial chat
-    leftPanel->createInitialChat(tr("New LLM chat"));
+    leftPanel->createChatWidget(tr("New LLM chat"));
 }
 
 MainWindow::~MainWindow()
@@ -121,9 +123,9 @@ void MainWindow::onManageConnections()
 void MainWindow::onChatRemoved(QWidget *chatWidget)
 {
     // Remove all existing widgets from the container
-    if (chatContainer->layout() && !chatContainer->layout()->isEmpty()) {
+    if (m_contentWidget->layout() && !m_contentWidget->layout()->isEmpty()) {
         QLayoutItem *item;
-        while ((item = chatContainer->layout()->takeAt(0)) != nullptr) {
+        while ((item = m_contentWidget->layout()->takeAt(0)) != nullptr) {
             if (item->widget() == chatWidget) {
                 delete item->widget();
                 //delete item;
@@ -136,9 +138,9 @@ void MainWindow::onChatRemoved(QWidget *chatWidget)
 void MainWindow::onChatSelected(QWidget *chatWidget)
 {
     // Get the existing layout or create a new one if it doesn't exist
-    QVBoxLayout *chatLayout = qobject_cast<QVBoxLayout *>(chatContainer->layout());
+    QVBoxLayout *chatLayout = qobject_cast<QVBoxLayout *>(m_contentWidget->layout());
     if (!chatLayout) {
-        chatLayout = new QVBoxLayout(chatContainer);
+        chatLayout = new QVBoxLayout(m_contentWidget);
         chatLayout->setContentsMargins(0, 0, 0, 0);
     }
 
@@ -157,11 +159,5 @@ void MainWindow::onChatSelected(QWidget *chatWidget)
         chatLayout->addWidget(chatWidget);
     }
 
-    // Make sure the selected widget is visible
     chatWidget->setVisible(true);
-}
-
-QWidget *MainWindow::getCentralWidget() const
-{
-    return centralWidget;
 }

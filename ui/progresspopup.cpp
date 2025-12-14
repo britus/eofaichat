@@ -57,7 +57,7 @@ void ProgressPopup::showCentered()
 void ProgressPopup::setBlurEffect(bool enable)
 {
     if (MainWindow *mw = mainWindow()) {
-        if (QWidget *cw = mw->getCentralWidget()) {
+        if (QWidget *cw = mw->centralWidget()) {
             cw->setEnabled(!enable);
             QGraphicsBlurEffect *bf = qobject_cast<QGraphicsBlurEffect *>(cw->graphicsEffect());
             if (enable && !bf) {

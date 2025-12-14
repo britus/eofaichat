@@ -23,7 +23,7 @@ public:
     explicit LeftPanelWidget(QWidget *parent = nullptr);
 
     // Method to create initial chat
-    void createInitialChat(const QString &name);
+    void createChatWidget(const QString &name);
 
 signals:
     void downloadClicked();
@@ -41,7 +41,6 @@ private slots:
     void onUpdates();
     void onChatNameChanged(const QString &newName);
     void onDeleteChatRequested(int row);
-    void onAddChat();
     void onContextMenu(const QPoint &point);
 
 protected:

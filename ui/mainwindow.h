@@ -1,15 +1,17 @@
 #pragma once
+#include <QAction>
 #include <QHBoxLayout>
 #include <QMainWindow>
-#include <QSettings>
-#include <QWidget>
 #include <QMenu>
 #include <QMenuBar>
-#include <QAction>
+#include <QSettings>
+#include <QWidget>
 
 class SettingsManager;
 class LLMConnectionModel;
 class LLMConnectionsDialog;
+class SyntaxColorModel;
+class ToolModel;
 
 class MainWindow : public QMainWindow
 {
@@ -20,7 +22,10 @@ public:
     ~MainWindow();
 
     // Expose central widget for blur effect
-    QWidget *getCentralWidget() const;
+    inline QWidget *centralWidget() const { return m_centralWidget; }
+    inline QWidget *contentWidget() const { return m_contentWidget; }
+    inline SyntaxColorModel *syntaxModel() const { return m_syntaxModel; }
+    inline ToolModel *toolModel() const { return m_toolModel; }
 
 private slots:
     void onChatSelected(QWidget *chatWidget);
@@ -29,12 +34,14 @@ private slots:
 
 private:
     void setupMenuBar();
-    
+
 private:
-    QHBoxLayout *mainLayout;
-    QWidget *chatContainer;
-    QWidget *centralWidget;
+    QMenu *m_toolsMenu;
+    QHBoxLayout *m_mainLayout;
+    QWidget *m_contentWidget;
+    QWidget *m_centralWidget;
     SettingsManager *settingsManager;
     LLMConnectionModel *m_connectionModel;
-    QMenu *m_toolsMenu;
+    SyntaxColorModel *m_syntaxModel;
+    ToolModel *m_toolModel;
 };

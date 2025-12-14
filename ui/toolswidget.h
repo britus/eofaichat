@@ -29,7 +29,7 @@ private slots:
 private:
     void setupUI();
     void populateToolBox();
-    QWidget *createToolPage(ToolModel::ToolType type);
+    QWidget *createToolPage(ToolModel::ToolModelType type);
     QWidget *createToolbar(int index);
     QWidget *createToolItem(int index);
     void centerWindow();

@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     darkPalette.setColor(QPalette::HighlightedText, Qt::white);
 
     QApplication::setOrganizationName(QStringLiteral("EoF Software Labs"));
-    QApplication::setOrganizationDomain(QStringLiteral("org.eof.tools.smartaichat"));
+    QApplication::setOrganizationDomain(QStringLiteral("org.eof.tools.eofaichat"));
     QApplication::setApplicationName(QStringLiteral("eofaichat"));
     QApplication::setApplicationDisplayName(QStringLiteral("EoF Smart AI Chat"));
     QApplication::setApplicationVersion(QStringLiteral("%1.%2").arg(getBundleVersion(), getBuildNumber()));

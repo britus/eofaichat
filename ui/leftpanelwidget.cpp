@@ -1,6 +1,7 @@
 #include <chatlistitemdelegate.h>
 #include <chatpanelwidget.h>
 #include <leftpanelwidget.h>
+#include <mainwindow.h>
 #include <QApplication>
 #include <QInputDialog>
 #include <QKeyEvent>
@@ -90,19 +91,38 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     layout->addWidget(aboutButton);
 }
 
-void LeftPanelWidget::createInitialChat(const QString &name)
+static inline MainWindow *mainWindow()
 {
-    // Create initial chat
-    chatModel->addChat(name);
+    // Finding the first QMainWindow in QApplication
+    const QWidgetList allWidgets = QApplication::topLevelWidgets();
+    for (QObject *obj : allWidgets) {
+        if (MainWindow *mw = qobject_cast<MainWindow *>(obj)) {
+            return mw;
+        }
+    }
+    return nullptr;
+}
 
-    // Select the new chat
-    QModelIndex newIndex = chatModel->index(0, 0);
-    chatList->setCurrentIndex(newIndex);
+void LeftPanelWidget::createChatWidget(const QString &name)
+{
+    if (MainWindow *mw = mainWindow()) {
+        ChatPanelWidget *newWidget = new ChatPanelWidget( //
+            mw->syntaxModel(),
+            mw->toolModel(),
+            mw->contentWidget());
 
-    // Emit signal to update main window
-    ChatListModel::ChatData *chatData = chatModel->getChatData(0);
-    if (chatData) {
-        emit chatSelected(chatData->widget);
+        // Create initial chat
+        chatModel->addChat(name, newWidget);
+
+        // Select the new chat
+        QModelIndex newIndex = chatModel->index(0, 0);
+        chatList->setCurrentIndex(newIndex);
+
+        // Emit signal to update main window
+        ChatListModel::ChatData *chatData = chatModel->getChatData(0);
+        if (chatData) {
+            emit chatSelected(chatData->widget);
+        }
     }
 }
 
@@ -184,31 +204,14 @@ void LeftPanelWidget::onChatNameChanged(const QString & /*newName*/)
     // when it's changed from outside
 }
 
-void LeftPanelWidget::onAddChat()
+void LeftPanelWidget::onNewChat()
 {
-    // Create a new chat with default name
     QString newName = tr("New LLM chat");
     int count = chatModel->chatCount();
     if (count > 0) {
         newName = QString(tr("New LLM chat %1")).arg(count + 1);
     }
-
-    chatModel->addChat(newName);
-
-    // Select the new chat
-    QModelIndex newIndex = chatModel->index(count, 0);
-    chatList->setCurrentIndex(newIndex);
-
-    // Emit signal to update main window
-    ChatListModel::ChatData *chatData = chatModel->getChatData(count);
-    if (chatData) {
-        emit chatSelected(chatData->widget);
-    }
-}
-
-void LeftPanelWidget::onNewChat()
-{
-    onAddChat();
+    createChatWidget(newName);
 }
 
 void LeftPanelWidget::onContextMenu(const QPoint &point)
@@ -230,7 +233,7 @@ void LeftPanelWidget::onContextMenu(const QPoint &point)
     QAction *selectedAction = contextMenu.exec(chatList->mapToGlobal(point));
 
     if (selectedAction == addAction) {
-        onAddChat();
+        onNewChat();
     } else if (selectedAction == editAction) {
         onEditChat();
     } else if (selectedAction == deleteAction) {

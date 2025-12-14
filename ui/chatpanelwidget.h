@@ -33,7 +33,7 @@ class ChatPanelWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit ChatPanelWidget(QWidget *parent = nullptr);
+    explicit ChatPanelWidget(SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent = nullptr);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -47,36 +47,32 @@ private slots:
     void onShowProgressPopup();
 
 private:
+    // UI
     QVBoxLayout *messagesLayout;
     QWidget *messagesContainer;
     QWidget *chatWidgetContainer;
     QScrollArea *scrollArea;
     QTextEdit *messageInput;
     QPushButton *sendButton;
-
-    LLMChatClient *llmclient;
-    ChatModel *chatModel;
-
-    // list messages with their own bubble widget
     ChatTextWidget *chatWidget;
+    FileListWidget *fileListWidget;
+    QMainWindow *toolsWindow;
+    // LLM connection client
+    LLMChatClient *llmclient;
+    // Syntax color model used by all ChatTextWidget instances
+    SyntaxColorModel *syntaxModel;
+    // LLM Tooling
+    ToolModel *toolModel;
+    // File list model and widget
+    FileListModel *fileListModel;
+    // Progress popup widget
+    ProgressPopup *progressPopup;
+    // Attach file dialog
+    QString lastDirectory;
+
 #if 0
     QMap<ChatMessage *, ChatTextWidget *> m_messages;
 #endif
-    // Syntax color model used by all ChatTextWidget instances
-    SyntaxColorModel *syntaxModel;
-
-    QString lastDirectory;
-    QMainWindow *toolsWindow;
-
-    // Progress popup widget
-    ProgressPopup *progressPopup;
-
-    // File list model and widget
-    FileListModel *fileListModel;
-    FileListWidget *fileListWidget;
-
-    // LLM Tooling
-    ToolModel *toolModel;
 
 private:
     inline void createChatArea(QVBoxLayout *);

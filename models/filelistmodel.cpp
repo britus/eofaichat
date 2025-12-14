@@ -62,6 +62,7 @@ void FileListModel::loadContentOfFiles(QByteArray &content)
             QFileInfo fileInfo(_item->fileInfo());
             QFile file(fileInfo.absoluteFilePath());
             if (file.open(QFile::ReadOnly)) {
+                content.append(QStringLiteral("##File: %1\n").arg(fileInfo.baseName()).toUtf8());
                 content.append(file.readAll());
                 file.close();
             }

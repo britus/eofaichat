@@ -12,34 +12,42 @@ class ToolModel : public QAbstractListModel
 
 public:
     enum ToolOption {
-        AskBeforeRun = 0,
+        ToolDisabled = 0,
         ToolEnabled = 1,
-        ToolDisabled = 2,
+        AskBeforeRun = 2,
     };
     Q_ENUM(ToolOption)
 
-    enum ToolType {
-        Tool = 0,
-        Resource = 1,
-        Prompt = 2,
+    enum ToolModelType {
+        ToolUnknown = 0,
+        ToolFunction = 1,
+        ToolResource = 2,
+        ToolPrompt = 3,
     };
-    Q_ENUM(ToolType)
+    Q_ENUM(ToolModelType)
 
     enum Roles {
         ToolRole = Qt::UserRole + 1,
         NameRole,
         OptionRole,
         TypeRole,
+        DescriptionRole,
+        TitleRole,
+        ExecHandlerRole,
+        ExecMethodRole,
     };
     Q_ENUM(Roles)
 
-    struct ToolEntry
+    struct ToolModelEntry
     {
         QJsonObject tool;
         QString name;
+        QString title;
         QString description;
+        QString execHandler;
+        QString execMethod;
         ToolOption option;
-        ToolType type;
+        ToolModelType type;
     };
 
     explicit ToolModel(QObject *parent = nullptr);
@@ -51,10 +59,10 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     // Custom methods
-    void loadFromDirectory(const QFileInfo &fileInfo, ToolType type);
+    void loadFromDirectory(const QFileInfo &fileInfo, ToolModelType type);
     QList<QJsonObject> toolObjects() const;
     QJsonObject toolObject(const QString &name) const;
-    ToolModel::ToolEntry toolByName(const QString &name) const;
+    ToolModel::ToolModelEntry toolByName(const QString &name) const;
 
     void loadToolsConfig();
     bool hasExecutables() const;
@@ -62,26 +70,26 @@ public:
     bool hasPrompts() const;
 
 signals:
-    void toolAdded(const ToolModel::ToolEntry &entry);
+    void toolAdded(const ToolModel::ToolModelEntry &entry);
     void toolRemoved(int index);
 
 public slots:
-    void addToolEntry(const ToolModel::ToolEntry &entry);
+    void addToolEntry(const ToolModel::ToolModelEntry &entry);
     void removeToolEntry(int index);
 
 private:
-    QList<ToolEntry> m_toolEntries;
+    QList<ToolModelEntry> m_toolEntries;
 
 private:
-    inline bool createConfigPath(const QDir &dir) const;
+    inline bool createDirectory(const QDir &dir) const;
     inline QDir configDirectory(const QString &pathName) const;
     inline bool deployResourceFiles(const QString &resourcePath, const QDir &targetDir);
     inline bool copyDirectoryRecursively(const QString &sourcePath, const QString &targetPath);
-    inline void loadToolsConfig(const QString &subPath, ToolType type);
+    inline void loadToolsConfig(const QString &subPath, ToolModelType type);
 };
 Q_DECLARE_METATYPE(ToolModel::ToolOption)
-Q_DECLARE_METATYPE(ToolModel::ToolType)
+Q_DECLARE_METATYPE(ToolModel::ToolModelType)
 Q_DECLARE_METATYPE(ToolModel::Roles)
-Q_DECLARE_METATYPE(ToolModel::ToolEntry)
+Q_DECLARE_METATYPE(ToolModel::ToolModelEntry)
 
 #endif // TOOLMODEL_H

@@ -10,7 +10,15 @@ class ChatModel : public QAbstractListModel
     Q_OBJECT
 
 public:
-    enum Roles { ContentRole = Qt::UserRole + 1, RoleRole, CreatedRole, IdRole, ModelRole, ObjectRole, SystemFingerprintRole };
+    enum Roles {
+        ContentRole = Qt::UserRole + 1,
+        RoleRole,
+        CreatedRole,
+        IdRole,
+        ModelRole,
+        ObjectRole,
+        SystemFingerprintRole,
+    };
 
     explicit ChatModel(QObject *parent = nullptr);
 
@@ -23,12 +31,13 @@ public:
 
     // Custom methods
     void clear();
-    void addMessage(const ChatMessage &message);
-    void addMessageFromJson(const QJsonObject &json);
+    ChatMessage *addMessage(const ChatMessage &message);
+    ChatMessage *addMessage(ChatMessage *message);
     void removeMessage(int index);
 
     ChatMessage *messageAt(int index) const;
     ChatMessage *messageById(const QString &id);
+    QByteArray chatContent() const;
 
 signals:
     void messageAdded(ChatMessage *message);

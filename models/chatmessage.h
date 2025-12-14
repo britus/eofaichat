@@ -12,7 +12,7 @@ class ChatMessage : public QObject
 
 public:
     enum Role {
-        None = 0,
+        NoRole = 0,
         AssistantRole = 1,
         UserRole = 2,
         SystemRole = 3,
@@ -21,15 +21,16 @@ public:
     Q_ENUM(Role)
 
     enum ToolType {
-        Tool = 0,
-        Resuource = 1,
-        Prompt = 2,
-        Function = 3,
+        TypeNone = 0,
+        Function = 1,
+        Resuource = 2,
+        Prompt = 3,
     };
     Q_ENUM(ToolType)
 
     struct ToolEntry
     {
+        int m_toolIndex;
         QString m_toolType;
         QString m_toolCallId;
         QString m_functionName;
@@ -37,17 +38,21 @@ public:
         QString m_arguments;
         inline ToolType toolType() const
         {
-            if (m_toolType.toLower() == "tool") {
-                return Tool;
-            } else if (m_toolType.toLower() == "resource") {
+            if (m_toolType.toLower() == "resource") {
                 return Resuource;
             } else if (m_toolType.toLower() == "prompt") {
                 return Prompt;
             } else if (m_toolType.toLower() == "function") {
                 return Function;
             }
-            return Function;
+            return TypeNone;
         }
+        inline void setToolIndex(int value)
+        {
+            if (value != 0)
+                m_toolIndex = value;
+        }
+        inline int toolIndex() const { return m_toolIndex; }
         inline void setToolType(const QString &value)
         {
             if (!value.trimmed().isEmpty())
@@ -71,12 +76,28 @@ public:
             if (!value.trimmed().isEmpty())
                 m_arguments = value.trimmed();
         }
+        inline bool isValid() const
+        {
+            return !m_toolType.isEmpty()      //
+                   && !m_toolCallId.isEmpty() //
+                   && !m_functionName.isEmpty();
+        }
     };
 
     explicit ChatMessage(QObject *parent);
-    ChatMessage(const QJsonObject &json, QObject *parent);
     ChatMessage(const ChatMessage &other); // Copy constructor
+
+    /**
+     * @brief toJson
+     * @return
+     */
     QJsonObject toJson() const;
+
+    /**
+     * @brief mergeToolsFrom
+     * @param tool
+     */
+    void mergeToolsFrom(ChatMessage::ToolEntry &tool);
 
     inline const QString &content() const { return m_content; }
     inline Role role() const { return m_role; }
@@ -91,11 +112,8 @@ public:
     inline const QJsonObject &usage() const { return m_usage; }
     inline const QList<ToolEntry> &tools() const { return m_tools; }
 
-    void mergeMessage(ChatMessage *other);
-    void mergeToolsFrom(ChatMessage::ToolEntry &tool);
-
 public slots:
-    void addContent(const QString &content);
+    void appendContent(const QString &content);
     void setContent(const QString &content);
     void setRole(ChatMessage::Role role);
     void setCreated(qint64 created);
@@ -109,13 +127,6 @@ public slots:
     void setUsage(const QJsonObject &usage);
     void addTools(const QList<ChatMessage::ToolEntry> &tools);
     void setTools(const QList<ChatMessage::ToolEntry> &tools);
-
-private:
-    inline void parseHeaderFields(const QJsonObject &json);
-    inline void parseMessageContent(const QJsonObject &json);
-    inline void parseChoiceObject(const QJsonObject &choice);
-    inline void parseToolCalls(const QJsonValue toolCalls);
-    inline ToolEntry parseToolCall(const QJsonObject toolObject) const;
 
 private:
     QString m_content;

@@ -48,12 +48,11 @@ public slots:
 
     /**
      * @brief execute
-     * @param model
-     * @param function
+     * @param tool
      * @param arguments
      * @return
      */
-    Q_INVOKABLE QJsonObject execute(const ToolModel *model, const QString &function, const QString &arguments) const;
+    Q_INVOKABLE QJsonObject execute(const ToolModel::ToolModelEntry &tool, const QString &arguments) const;
     /**
      * @brief createErrorResponse
      * @param strErrorMsg
@@ -75,6 +74,7 @@ public slots:
     Q_INVOKABLE QJsonObject fileInfoToJson(const QFileInfo &fileInfo, const QString &strBaseDir) const;
 
 private:
+    typedef std::function<const QJsonObject(const ToolModel::ToolModelEntry &, const QJsonObject &)> ToolFunctionType;
     // Standard file extensions for source code
     QStringList DEFAULT_EXTENSIONS = QStringList() //
                                      << ".cpp"     //
@@ -85,26 +85,11 @@ private:
                                      << ".cxx"     //
                                      << ".hxx"     //
                                      << ".java";
+    QMap<QString, ToolFunctionType> m_functions;
 
 private:
-    /**
-     * @brief createBackupPath
-     * @param strOriginalPath
-     * @return
-     */
+    QJsonObject listDirectory(const ToolModel::ToolModelEntry &tool, const QJsonObject &args) const;
     QString createBackupPath(const QString &strOriginalPath) const;
-    /**
-     * @brief isValidPath
-     * @param strPath
-     * @return
-     */
     bool isValidPath(const QString &strPath) const;
-    /**
-     * @brief findSourceFiles
-     * @param strPath
-     * @param strExtensions
-     * @param bRecursive
-     * @return
-     */
     QList<QFileInfo> findSourceFiles(const QString &strPath, const QStringList &strExtensions, bool bRecursive) const;
 };
