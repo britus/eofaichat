@@ -17,6 +17,8 @@ public:
         UserRole = 2,
         SystemRole = 3,
         ChatRole = 4,
+        ToolingRole = 5,
+        LlmRole = 6,
     };
     Q_ENUM(Role)
 
@@ -101,6 +103,7 @@ public:
 
     inline const QString &content() const { return m_content; }
     inline Role role() const { return m_role; }
+    inline bool isUser() const { return m_role == ChatRole || m_role == UserRole; }
     inline qint64 created() const { return m_created; }
     inline const QString &id() const { return m_id; }
     inline const QString &model() const { return m_model; }

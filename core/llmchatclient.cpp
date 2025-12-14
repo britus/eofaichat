@@ -46,19 +46,102 @@ void LLMChatClient::setTimeout(int milliseconds)
     m_timeout = milliseconds;
 }
 
-void LLMChatClient::sendChat(const QString &model, const QString &message, bool stream, int maxTokens, double temperature)
+/*
+Sample of conversation request with tooling openAI -like:
 {
-    // Create a single message object
-    QJsonObject messageObj;
-    messageObj["role"] = "user";
-    messageObj["content"] = message;
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the current state of AI development?"
+    },
+    {
+      "role": "assistant",
+      "content": "AI development has made tremendous progress in recent years, especially in natural language processing and computer vision..."
+    },
+    {
+      "role": "tool",
+      "toolName": "WebSearch",
+      "parameters": {
+        "query": "current trends in AI development"
+      },
+      "result": {
+        "content": "Current trends include increasing efficiency of AI models as well as a focus on ethical aspects..."
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "According to the latest trends, AI development is focusing on efficiency and ethical challenges..."
+    }
+  ]
+}
+*/
 
+void LLMChatClient::sendChat(const QList<SendParameters> &parameters, bool stream, int maxTokens, double temperature)
+{
     // Create list with single message
     QList<QJsonObject> messages;
-    messages.append(messageObj);
+
+    foreach (auto &p, parameters) {
+        // Create a single message object
+        QJsonObject messageObj;
+        switch (p.role) {
+            case ChatMessage::NoRole: {
+                messageObj["role"] = "user";
+                break;
+            }
+            case ChatMessage::Role::AssistantRole: {
+                messageObj["role"] = "assistant";
+                break;
+            }
+            case ChatMessage::UserRole: {
+                messageObj["role"] = "user";
+                break;
+            }
+            case ChatMessage::SystemRole: {
+                messageObj["role"] = "system";
+                break;
+            }
+            case ChatMessage::ChatRole: {
+                messageObj["role"] = "user";
+                break;
+            }
+            case ChatMessage::ToolingRole: {
+                messageObj["role"] = "tool"; //tooling
+                break;
+            }
+            case ChatMessage::LlmRole: {
+                messageObj["role"] = "llm";
+                break;
+            }
+        }
+
+        // Standard user text
+        messageObj["content"] = p.message.isEmpty() ? p.toolResult : p.message;
+
+        if (!p.toolName.isEmpty()) {
+            messageObj["tool_name"] = p.toolName;
+            messageObj["parameters"] = QJsonObject{
+                QPair<QString, QString>("query", p.toolQuery),
+            };
+            messageObj["result"] = QJsonObject{
+                QPair<QString, QString>("content", p.toolResult),
+            };
+        }
+
+        messages.append(messageObj);
+    }
 
     // Call the main createChatCompletion method
-    sendChat(model, messages, stream, maxTokens, temperature);
+    sendChat(activeModel().id, messages, stream, maxTokens, temperature);
+}
+
+void LLMChatClient::sendChat(const SendParameters &parameter, bool stream, int maxTokens, double temperature)
+{
+    // Create list with single message
+    QList<SendParameters> parameters;
+    parameters.append(parameter);
+
+    sendChat(parameters, stream, maxTokens, temperature);
 }
 
 void LLMChatClient::sendChat(const QString &model, const QList<QJsonObject> &messages, bool stream, int maxTokens, double temperature)

@@ -45,7 +45,10 @@ public:
     // Get file name (without path) at index
     QString fileName(int index) const;
 
-    void loadContentOfFiles(QByteArray &content);
+    QByteArray readFileContent(int index) const;
+
+    void loadFilesContent(QByteArray &content);
+
     void clear();
 
 signals:

@@ -296,6 +296,66 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
             return;
         }
 
+        QList<LLMChatClient::SendParameters> messages;
+#if 1
+        /*
+        QByteArray question = m_messageInput->toPlainText().trimmed().toUtf8();
+        if (question.isEmpty())
+            return;
+
+        // New question
+        messages.append({
+            .role = ChatMessage::Role::UserRole,
+            .message = question,
+        });
+        */
+        // Chat history
+        for (int i = 0; i < m_llmclient->chatModel()->rowCount(); i++) {
+            ChatMessage *cm = m_llmclient->chatModel()->messageAt(i);
+            if (cm->isUser()) {
+                messages.append({
+                    .role = cm->role(),
+                    .message = cm->content(),
+                });
+            } else {
+                foreach (auto t, cm->tools()) {
+                    messages.append({
+                        .role = cm->role(),
+                        .toolName = t.functionName(),
+                        .toolQuery = t.functionName(),
+                        .toolResult = cm->toolContent(),
+                    });
+                }
+            }
+        }
+
+        // new user question
+        QByteArray question = m_messageInput->toMarkdown().trimmed().toUtf8();
+        if (question.isEmpty())
+            return;
+
+        // New question
+        messages.append({
+            .role = ChatMessage::Role::UserRole,
+            .message = question,
+        });
+
+        // load file attachments
+        if (m_fileListModel->rowCount() > 0) {
+            QByteArray content;
+            for (int i = 0; i < m_fileListModel->rowCount(); i++) {
+                if (FileItem *_item = dynamic_cast<FileItem *>(m_fileListModel->item(i))) {
+                    messages.append({
+                        .role = ChatMessage::Role::AssistantRole,
+                        .toolName = "attachment",
+                        .toolQuery = _item->fileInfo().absoluteFilePath(),
+                        .toolResult = m_fileListModel->readFileContent(i),
+                    });
+                }
+            }
+        }
+
+#else
         QByteArray question = m_messageInput->toPlainText().trimmed().toUtf8();
         if (question.isEmpty())
             return;
@@ -323,6 +383,7 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
                 text.append("<|im_end|>\n");
             }
         }
+#endif
 
         // Add sender bubble
         ChatMessage cm(m_llmclient->chatModel());
@@ -347,7 +408,8 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
         m_isConversating = true;
 
         // Send JSON for network layer
-        m_llmclient->sendChat(cm.model(), text, true);
+        //m_llmclient->sendChat(cm.model(), text, true);
+        m_llmclient->sendChat(messages, true);
     });
 }
 
@@ -542,12 +604,6 @@ void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::Too
     QJsonObject content;
     QByteArray buffer;
 
-    QString llmId = m_llmclient->activeModel().id;
-    if (llmId.isEmpty()) {
-        qCritical().noquote() << "[LLMChatClient] LLM is not activated!";
-        return;
-    }
-
     qDebug().noquote() << "[ChatPanelWidget] onToolRequest type:" //
                        << toolCall.toolType()                     //
                        << "id:" << toolCall.toolCallId()          //
@@ -612,12 +668,11 @@ void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::Too
                     content = itemObject;
                 } else if (type.toLower().trimmed() == "text") {
                     if (itemObject["text"].isNull() || !itemObject["text"].isString()) {
-                        buffer = "\n<|im_start|>assistant\nFailed to execute tool.\n<|im_end|>\n<|im_stop|>\n";
+                        //buffer = "\n<|im_start|>assistant\nFailed to execute tool.\n<|im_end|>\n<|im_stop|>\n";
+                        buffer = "Failed to execute tool.\n<|im_stop|>\n";
                     } else {
-                        buffer = QStringLiteral( //
-                                     "\n<|im_start|>assistant\n%1\n<|im_end|>\n<|im_stop|>\n")
-                                     .arg(itemObject["text"].toString())
-                                     .toUtf8();
+                        //buffer = QStringLiteral("\n<|im_start|>assistant\n%1\n<|im_end|>\n<|im_stop|>\n").arg(itemObject["text"].toString()).toUtf8();
+                        buffer = QStringLiteral("%1\n<|im_stop|>\n").arg(itemObject["text"].toString()).toUtf8();
                     }
                 }
             } else {
@@ -635,13 +690,10 @@ void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::Too
 finish:
     if (buffer.isEmpty()) {
         content["stop"] = true;
-        buffer.append("<|im_start|>assistant\n");
+        //buffer.append("<|im_start|>assistant\n");
         buffer.append(QJsonDocument(content).toJson(QJsonDocument::Indented));
-        buffer.append("\n<|im_end|>\n");
+        //buffer.append("\n<|im_end|>\n");
     }
-
-    // Send message to LLM
-    m_llmclient->sendChat(llmId, buffer, true);
 
     QString errmsg;
     if (toolResult.contains("success") && !toolResult["success"].toBool()) {
@@ -649,7 +701,7 @@ finish:
     }
 
     ChatMessage cm(m_llmclient->chatModel());
-    cm.setRole(ChatMessage::Role::SystemRole);
+    cm.setRole(ChatMessage::Role::ToolingRole);
     cm.setId(QStringLiteral("CPW-%1").arg(message->id()));
     cm.setSystemFingerprint(cm.id());
     cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
@@ -668,5 +720,15 @@ finish:
                           .arg(toolCall.toolCallId(), //
                                toolCall.functionName()));
     }
+
     m_llmclient->chatModel()->addMessage(cm);
+
+    // Send message to LLM
+    LLMChatClient::SendParameters params = {
+        .role = ChatMessage::ToolingRole,
+        .toolName = tool.name,
+        .toolQuery = tool.title + "(" + tool.description + ")",
+        .toolResult = buffer,
+    };
+    m_llmclient->sendChat(params, true);
 }

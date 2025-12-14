@@ -55,18 +55,26 @@ QString FileListModel::fileName(int index) const
     return QString();
 }
 
-void FileListModel::loadContentOfFiles(QByteArray &content)
+QByteArray FileListModel::readFileContent(int index) const
 {
-    for (int i = 0; i < rowCount(); i++) {
-        if (FileItem *_item = dynamic_cast<FileItem *>(item(i))) {
+    QByteArray result;
+    if (index > -1 && index < rowCount()) {
+        if (FileItem *_item = dynamic_cast<FileItem *>(item(index))) {
             QFileInfo fileInfo(_item->fileInfo());
             QFile file(fileInfo.absoluteFilePath());
             if (file.open(QFile::ReadOnly)) {
-                content.append(QStringLiteral("##File: %1\n").arg(fileInfo.baseName()).toUtf8());
-                content.append(file.readAll());
+                result = file.readAll();
                 file.close();
             }
         }
+    }
+    return result;
+}
+
+void FileListModel::loadFilesContent(QByteArray &content)
+{
+    for (int i = 0; i < rowCount(); i++) {
+        content.append(readFileContent(i));
     }
 }
 

@@ -13,6 +13,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QObject>
+#include <QString>
 #include <QTimer>
 #include <QUrl>
 
@@ -21,6 +22,15 @@ class LLMChatClient : public QObject
     Q_OBJECT
 
 public:
+    struct SendParameters
+    {
+        ChatMessage::Role role = ChatMessage::Role::UserRole;
+        QString message;
+        QString toolName;
+        QString toolQuery; // user question
+        QString toolResult;
+    };
+
     explicit LLMChatClient(ToolModel *toolModel, ChatModel *chatModel, QObject *parent = nullptr);
 
     ~LLMChatClient();
@@ -31,13 +41,9 @@ public:
     void setApiKey(const QString &key);
 
     // Convenience method for single string message
-    void sendChat(const QString &model, const QString &message, bool stream = false, int maxTokens = 65536, double temperature = 0.7);
 
-    // Chat completion methods
-    void sendChat(const QString &model, const QList<QJsonObject> &messages, bool stream = false, int maxTokens = 65536, double temperature = 0.7);
-
-    // Chat completion with parameters
-    void sendChat(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream = false);
+    void sendChat(const QList<SendParameters> &parameters, bool stream = false, int maxTokens = 65536, double temperature = 0.7);
+    void sendChat(const SendParameters &parameters, bool stream = false, int maxTokens = 65536, double temperature = 0.7);
 
     // Model listing
     void listModels();
@@ -56,6 +62,12 @@ signals:
     void networkError(QNetworkReply::NetworkError error, const QString &message);
     void streamCompleted();
     void toolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);
+
+protected:
+    // Chat completion methods
+    void sendChat(const QString &model, const QList<QJsonObject> &messages, bool stream = false, int maxTokens = 65536, double temperature = 0.7);
+    // Chat completion with parameters
+    void sendChat(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream = false);
 
 private slots:
     void onLLMResponse(QNetworkReply *reply);
