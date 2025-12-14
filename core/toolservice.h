@@ -80,10 +80,18 @@ private:
                                      << ".cpp"     //
                                      << ".h"       //
                                      << ".hpp"     //
+                                     << ".hxx"     //
+                                     << ".hcc"     //
                                      << ".c"       //
                                      << ".cc"      //
                                      << ".cxx"     //
-                                     << ".hxx"     //
+                                     << ".m"       //
+                                     << ".mm"      //
+                                     << ".swift"   //
+                                     << ".py"      //
+                                     << ".rb"      //
+                                     << ".sh"      //
+                                     << ".bash"    //
                                      << ".js"      //
                                      << ".java";
     QMap<QString, ToolFunctionType> m_functions;

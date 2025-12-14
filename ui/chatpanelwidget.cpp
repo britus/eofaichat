@@ -612,10 +612,10 @@ void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::Too
                     content = itemObject;
                 } else if (type.toLower().trimmed() == "text") {
                     if (itemObject["text"].isNull() || !itemObject["text"].isString()) {
-                        buffer = "|stop|";
+                        buffer = "\n<|im_start|>assistant\nFailed to execute tool.\n<|im_end|>\n<|im_stop|>\n";
                     } else {
                         buffer = QStringLiteral( //
-                                     "%1\n|stop|")
+                                     "\n<|im_start|>assistant\n%1\n<|im_end|>\n<|im_stop|>\n")
                                      .arg(itemObject["text"].toString())
                                      .toUtf8();
                     }
@@ -635,8 +635,12 @@ void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::Too
 finish:
     if (buffer.isEmpty()) {
         content["stop"] = true;
-        buffer = QJsonDocument(content).toJson(QJsonDocument::Indented);
+        buffer.append("<|im_start|>assistant\n");
+        buffer.append(QJsonDocument(content).toJson(QJsonDocument::Indented));
+        buffer.append("\n<|im_end|>\n");
     }
+
+    // Send message to LLM
     m_llmclient->sendChat(llmId, buffer, true);
 
     QString errmsg;

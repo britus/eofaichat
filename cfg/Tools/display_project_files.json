@@ -9,7 +9,7 @@
       "priority": 0.9,
       "lastModified": "2025-01-12T15:00:58Z"
   },
-  "inputSchema": {
+  "parameters": {
     "type": "object",
     "properties": {
       "project_path": {
@@ -26,9 +26,19 @@
         "enum": ["name", "size", "date"],
         "description": "Sorting criterion",
         "default": "name"
+      },
+      "extensions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "List of file extensions to search for (e.g. ['.cpp', '.h', '.hpp'])",
+        "default": [".cpp", ".c", ".cc", ".cxx", ".h", ".hpp", ".hxx", ".hcc", ".m", ".mm",
+                    ".swift", ".py", ".rb", ".sh", ".bash", ".js", ".java", ".json"]
       }
     },
-    "required": ["project_path"]
+    "required": ["project_path"],
+    "additionalProperties": false
   },
   "outputSchema": {
     "type": "object",

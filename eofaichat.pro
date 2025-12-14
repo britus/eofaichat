@@ -329,9 +329,7 @@ OBJECTIVE_HEADERS += $$PWD/appbundle.h
 DISTFILES += \
     privacy.txt \
     qt.conf \
-    Info.plist \
-    eofaichat.css \
-    syntaxcolors.json
+    Info.plist
 
 RESOURCES += \
     eofaichat.qrc
