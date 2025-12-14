@@ -330,7 +330,7 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
         }
 
         // new user question
-        QByteArray question = m_messageInput->toMarkdown().trimmed().toUtf8();
+        QByteArray question = m_messageInput->toPlainText().trimmed().toUtf8();
         if (question.isEmpty())
             return;
 
