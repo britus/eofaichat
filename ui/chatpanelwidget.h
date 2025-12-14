@@ -50,7 +50,6 @@ private:
     // UI
     QVBoxLayout *m_messagesLayout;
     QWidget *m_messagesContainer;
-    QWidget *m_chatWidgetContainer;
     QScrollArea *m_scrollArea;
     QTextEdit *m_messageInput;
     QPushButton *m_sendButton;

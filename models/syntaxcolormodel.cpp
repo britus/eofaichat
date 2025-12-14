@@ -1,3 +1,4 @@
+#include <chattexttokenizer.h>
 #include <syntaxcolormodel.h>
 #include <QCoreApplication>
 #include <QDebug>
@@ -69,6 +70,7 @@ bool SyntaxColorModel::hasLanguage(const QString &language) const
 // Try load color model from relative file; adjust path as needed.
 void SyntaxColorModel::loadSyntaxModel()
 {
+    ChatTextTokenizer::fileExtToLanguage("cpp");
     // if using resources
     QString colorFile = ":/syntaxcolors.json";
     if (!QFile::exists(colorFile)) {

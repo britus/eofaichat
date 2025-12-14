@@ -116,7 +116,7 @@ void LLMChatClient::sendChat(const QList<SendParameters> &parameters, bool strea
         }
 
         // Standard user text
-        messageObj["content"] = p.message.isEmpty() ? p.toolResult : p.message;
+        messageObj["content"] = p.content.isEmpty() ? p.toolResult : p.content;
 
         if (!p.toolName.isEmpty()) {
             messageObj["tool_name"] = p.toolName;

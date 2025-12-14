@@ -25,7 +25,7 @@ public:
     struct SendParameters
     {
         ChatMessage::Role role = ChatMessage::Role::UserRole;
-        QString message;
+        QString content;
         QString toolName;
         QString toolQuery; // user question
         QString toolResult;

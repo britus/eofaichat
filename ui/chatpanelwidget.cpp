@@ -51,7 +51,6 @@ ChatPanelWidget::ChatPanelWidget(SyntaxColorModel *scModel, ToolModel *tModel, Q
     setMinimumHeight(640);
 
     // create extension to language mapping once
-    ChatTextTokenizer::fileExtToLanguage("cpp");
     m_syntaxModel->loadSyntaxModel();
 
     // Widget main area
@@ -315,7 +314,7 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
             if (cm->isUser()) {
                 messages.append({
                     .role = cm->role(),
-                    .message = cm->content(),
+                    .content = cm->content(),
                 });
             } else {
                 foreach (auto t, cm->tools()) {
@@ -330,30 +329,25 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
         }
 
         // new user question
+        QStringList text;
         QByteArray question = m_messageInput->toPlainText().trimmed().toUtf8();
         if (question.isEmpty())
             return;
-
-        // New question
-        messages.append({
-            .role = ChatMessage::Role::UserRole,
-            .message = question,
-        });
-
+        text.append(question);
         // load file attachments
         if (m_fileListModel->rowCount() > 0) {
             QByteArray content;
             for (int i = 0; i < m_fileListModel->rowCount(); i++) {
                 if (FileItem *_item = dynamic_cast<FileItem *>(m_fileListModel->item(i))) {
-                    messages.append({
-                        .role = ChatMessage::Role::AssistantRole,
-                        .toolName = "attachment",
-                        .toolQuery = _item->fileInfo().absoluteFilePath(),
-                        .toolResult = m_fileListModel->readFileContent(i),
-                    });
+                    text.append(QStringLiteral("#File name: %1").arg(_item->fileInfo().absoluteFilePath()));
+                    text.append(m_fileListModel->readFileContent(i));
                 }
             }
         }
+        messages.append({
+            .role = ChatMessage::Role::UserRole,
+            .content = text.join("\n"),
+        });
 
 #else
         QByteArray question = m_messageInput->toPlainText().trimmed().toUtf8();
