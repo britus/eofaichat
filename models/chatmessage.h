@@ -111,6 +111,7 @@ public:
     inline const QJsonObject &stats() const { return m_stats; }
     inline const QJsonObject &usage() const { return m_usage; }
     inline const QList<ToolEntry> &tools() const { return m_tools; }
+    inline const QString &toolContent() const { return m_toolContent; }
 
 public slots:
     void appendContent(const QString &content);
@@ -127,6 +128,7 @@ public slots:
     void setUsage(const QJsonObject &usage);
     void addTools(const QList<ChatMessage::ToolEntry> &tools);
     void setTools(const QList<ChatMessage::ToolEntry> &tools);
+    void setToolContent(const QString &content);
 
 private:
     QString m_content;
@@ -141,7 +143,7 @@ private:
     QJsonObject m_stats;
     QJsonObject m_usage;
     QList<ToolEntry> m_tools;
-    QMap<QString, QJsonObject> m_activeToolCalls; // Track ongoing tool calls by ID
+    QString m_toolContent;
 };
 Q_DECLARE_METATYPE(ChatMessage::ToolEntry)
 Q_DECLARE_METATYPE(ChatMessage::ToolType)

@@ -97,6 +97,13 @@ void ChatMessage::setContent(const QString &content)
     }
 }
 
+void ChatMessage::setToolContent(const QString &content)
+{
+    if (!content.isEmpty() && m_toolContent != content) {
+        m_toolContent = content;
+    }
+}
+
 void ChatMessage::appendContent(const QString &content)
 {
     if (!content.isEmpty() && !content.isEmpty()) {

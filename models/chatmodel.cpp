@@ -132,8 +132,41 @@ QByteArray ChatModel::chatContent() const
 {
     QByteArray result;
     foreach (ChatMessage *message, m_messages) {
-        result.append(message->content().toUtf8());
-        result.append("\n");
+        if (message->toolContent().isEmpty()) {
+            if (!message->content().isEmpty()) {
+                QString role = "user";
+                switch (message->role()) {
+                    case ChatMessage::UserRole: {
+                        role = "user";
+                        break;
+                    }
+                    case ChatMessage::SystemRole: {
+                        role = "system";
+                        break;
+                    }
+                    case ChatMessage::AssistantRole: {
+                        role = "assistant";
+                        break;
+                    }
+                    case ChatMessage::ChatRole: {
+                        role = "user";
+                        break;
+                    }
+                    default: {
+                        role = "user";
+                        break;
+                    }
+                }
+                role = QStringLiteral("\n<|im_start|>%1\n").arg(role);
+                result.append(role.toUtf8());
+                result.append(message->content().toUtf8());
+                result.append("\n<|im_end|>\n");
+            }
+        } else {
+            result.append("\n<|im_start|>assistant\n");
+            result.append(message->toolContent().toUtf8());
+            result.append("\n<|im_end|>\n");
+        }
     }
     return result;
 }

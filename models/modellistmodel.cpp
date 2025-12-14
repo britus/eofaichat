@@ -131,23 +131,25 @@ void ModelListModel::removeEntry(int row)
 
 void ModelListModel::loadFrom(const QJsonArray &models)
 {
+    if (models.isEmpty()) {
+        return;
+    }
+
     beginResetModel();
     m_entries.clear();
-
     for (const auto &value : models) {
-        if (!value.isObject())
+        if (!value.isObject()) {
             continue;
-
+        }
         QJsonObject obj = value.toObject();
         ModelEntry entry;
         entry.id = obj.value("id").toString();
         entry.object = obj.value("object").toString();
         entry.ownedBy = obj.value("owned_by").toString();
-
         m_entries.append(entry);
     }
-
     endResetModel();
+
     emit modelsLoaded();
 }
 

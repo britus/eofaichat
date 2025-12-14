@@ -10,63 +10,22 @@
 ToolService::ToolService(QObject *parent)
     : QObject{parent}
 {
-#define PARAM_SIG const ToolModel::ToolModelEntry &tool, const QJsonObject &args
-
-    m_functions["display_project_files"] = [this](PARAM_SIG) -> QJsonObject const {
-        return listDirectory(tool, args);
-    };
-    m_functions["list_source_files"] = [this](PARAM_SIG) -> QJsonObject const {
-        return listDirectory(tool, args);
-    };
-
-    m_functions["read_source_file"] = [this](PARAM_SIG) -> QJsonObject const {
-        QString filePath;
-        if (args.contains("file_path") && args["file_path"].isString()) {
-            filePath = args["file_path"].toString();
-            return readSourceFile(filePath);
-        } else {
-            return createErrorResponse( //
-                QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(tool.name));
-        }
-    };
-
-    m_functions["write_source_file"] = [this](PARAM_SIG) -> QJsonObject const {
-        QString filePath;
-        if (!args.contains("file_path") || !args["file_path"].isString()) {
-            return createErrorResponse( //
-                QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(tool.name));
-        }
-        filePath = args["file_path"].toString();
-
-        QString content;
-        if (!args.contains("content") || !args["content"].isString()) {
-            return createErrorResponse( //
-                QStringLiteral("Parameter 'content' is missing in function: %1").arg(tool.name));
-        }
-        content = args["content"].toString();
-
-        bool backup = true;
-        if (!args.contains("content") || !args["content"].isBool()) {
-            backup = true;
-        } else {
-            backup = args["create_backup"].toBool();
-        }
-
-        return writeSourceFile(filePath, content.toUtf8(), backup);
-    };
+    initializeToolMap();
 }
 
 QJsonObject ToolService::execute(const ToolModel::ToolModelEntry &tool, const QString &arguments) const
 {
     qDebug().noquote() << "[ToolService] execute type:" << tool.type //
-                       << "name:" << tool.name << "args:" << arguments;
+                       << "method:" << tool.execMethod               //
+                       << "name:" << tool.name                       //
+                       << "args:" << arguments;
 
     QJsonObject args;
     if (!arguments.isEmpty()) {
         QJsonParseError error;
         QJsonDocument doc = QJsonDocument::fromJson(arguments.toUtf8(), &error);
         if (error.error != QJsonParseError::NoError) {
-            return createErrorResponse(tr("[ToolService] JSON error #%1 offset: %2 - %3") //
+            return createErrorResponse(tr("[ToolService] Parameters: JSON error #%1 offset: %2 - %3") //
                                            .arg(error.error)
                                            .arg(error.offset)
                                            .arg(error.errorString()));
@@ -192,7 +151,7 @@ QJsonObject ToolService::displayProjectFiles(const QString &projectPath, bool re
 
     QJsonDocument doc = QJsonDocument(jsonFiles);
     QJsonArray resultText = QJsonArray({QJsonObject({
-        QPair<QString, QString>("type", "text"), //
+        QPair<QString, QString>("type", "object"), //
         QPair<QString, QString>("text", doc.toJson(QJsonDocument::Compact) /*textLines.join("\n")*/),
     })});
 
@@ -233,11 +192,12 @@ QJsonObject ToolService::listSourceFiles(const QString &projectPath, const QStri
         QPair<QString, QJsonValue>("files", jsonFiles),
         QPair<QString, QJsonValue>("total_files", QJsonValue(static_cast<int>(fileList.size()))),
         QPair<QString, QJsonValue>("project_path", QJsonValue(projectPath)),
+        QPair<QString, QJsonValue>("success", QJsonValue(true)),
     });
 
     QJsonDocument doc = QJsonDocument(structContent);
     QJsonObject textResult = QJsonObject({
-        QPair<QString, QString>("type", "text"), //
+        QPair<QString, QString>("type", "object"), //
         QPair<QString, QString>("text", doc.toJson()),
     });
 
@@ -293,13 +253,14 @@ QJsonObject ToolService::readSourceFile(const QString &filePath, qsizetype lengt
     structContent["encoding"] = "UTF-8";
     structContent["line_count"] = iLineCount;
     structContent["size"] = static_cast<int>(byteContent.size());
+    structContent["success"] = true;
 
     // result
     //auto timestamp = QDateTime::currentDateTime().toString(Qt::ISODate) + "Z";
 
     QJsonDocument doc = QJsonDocument(structContent);
     QJsonObject textResult = QJsonObject({
-        QPair<QString, QString>("type", "text"),       //
+        QPair<QString, QString>("type", "object"),     //
         QPair<QString, QString>("text", doc.toJson()), //
     });
 
@@ -346,22 +307,22 @@ QJsonObject ToolService::writeSourceFile(const QString &filePath, const QByteArr
         }
     }
 
-    QJsonObject result;
-    result["file_path"] = filePath;
-    result["success"] = false;
+    QJsonObject structContent;
+    structContent["file_path"] = filePath;
+    structContent["success"] = false;
 
     QString backupPath;
     if (createBackup && QFile::exists(filePath)) {
         backupPath = createBackupPath(filePath);
         if (!backupPath.isEmpty()) {
-            result["backup_path"] = backupPath;
+            structContent["backup_path"] = backupPath;
         }
     }
 
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        result["message"] = QString("Error: File could not be written - %1").arg(file.errorString());
-        return result;
+        structContent["message"] = QString("Error: File could not be written - %1").arg(file.errorString());
+        return structContent;
     }
 
     QByteArray byteContent = content;
@@ -369,25 +330,25 @@ QJsonObject ToolService::writeSourceFile(const QString &filePath, const QByteArr
     file.close();
 
     if (bytesWritten == -1) {
-        result["message"] = "Error writing the file";
-        return result;
+        structContent["message"] = "Error writing the file";
+        return structContent;
     }
 
-    result["success"] = true;
-    result["bytes_written"] = static_cast<int>(bytesWritten);
-    result["message"] = QString("File successfully saved - %1 Bytes written").arg(bytesWritten);
+    structContent["success"] = true;
+    structContent["bytes_written"] = static_cast<int>(bytesWritten);
+    structContent["message"] = QString("File successfully saved - %1 Bytes written").arg(bytesWritten);
 
     // result
     auto timestamp = QDateTime::currentDateTime().toString(Qt::ISODate) + "Z";
 
-    QJsonDocument doc = QJsonDocument(result);
+    QJsonDocument doc = QJsonDocument(structContent);
     QJsonArray resp_content = QJsonArray({QJsonObject({
-        QPair<QString, QString>("type", "text"), //
+        QPair<QString, QString>("type", "object"), //
         QPair<QString, QString>("text", doc.toJson()),
     })});
 
     QJsonObject response = QJsonObject({
-        QPair<QString, QJsonValue>("structuredContent", result),
+        QPair<QString, QJsonValue>("structuredContent", structContent),
         QPair<QString, QJsonValue>("content", resp_content),
     });
 
@@ -520,4 +481,52 @@ QJsonObject ToolService::createErrorResponse(const QString &strErrorMsg) const
     jsonError["success"] = false;
     jsonError["error"] = strErrorMsg;
     return jsonError;
+}
+
+void ToolService::initializeToolMap()
+{
+#define PARAM_SIG const ToolModel::ToolModelEntry &tool, const QJsonObject &args
+
+    m_functions["display_project_files"] = [this](PARAM_SIG) -> QJsonObject const {
+        return listDirectory(tool, args);
+    };
+    m_functions["list_source_files"] = [this](PARAM_SIG) -> QJsonObject const {
+        return listDirectory(tool, args);
+    };
+
+    m_functions["read_source_file"] = [this](PARAM_SIG) -> QJsonObject const {
+        QString filePath;
+        if (args.contains("file_path") && args["file_path"].isString()) {
+            filePath = args["file_path"].toString();
+            return readSourceFile(filePath);
+        } else {
+            return createErrorResponse( //
+                QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(tool.name));
+        }
+    };
+
+    m_functions["write_source_file"] = [this](PARAM_SIG) -> QJsonObject const {
+        QString filePath;
+        if (!args.contains("file_path") || !args["file_path"].isString()) {
+            return createErrorResponse( //
+                QStringLiteral("Parameter 'file_path' is missing in function: %1").arg(tool.name));
+        }
+        filePath = args["file_path"].toString();
+
+        QString content;
+        if (!args.contains("content") || !args["content"].isString()) {
+            return createErrorResponse( //
+                QStringLiteral("Parameter 'content' is missing in function: %1").arg(tool.name));
+        }
+        content = args["content"].toString();
+
+        bool backup = true;
+        if (!args.contains("content") || !args["content"].isBool()) {
+            backup = true;
+        } else {
+            backup = args["create_backup"].toBool();
+        }
+
+        return writeSourceFile(filePath, content.toUtf8(), backup);
+    };
 }

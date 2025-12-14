@@ -47,7 +47,8 @@ public:
     int chatCount() const;
 
 signals:
-    void chatRemoved(QWidget *widget);
+    void chatWidgetRemoved(QWidget *widget);
+    void chatWidgetAdded(QWidget *widget);
 
 private:
     QList<ChatData> m_chats;

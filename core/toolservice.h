@@ -84,10 +84,12 @@ private:
                                      << ".cc"      //
                                      << ".cxx"     //
                                      << ".hxx"     //
+                                     << ".js"      //
                                      << ".java";
     QMap<QString, ToolFunctionType> m_functions;
 
 private:
+    void initializeToolMap();
     QJsonObject listDirectory(const ToolModel::ToolModelEntry &tool, const QJsonObject &args) const;
     QString createBackupPath(const QString &strOriginalPath) const;
     bool isValidPath(const QString &strPath) const;

@@ -27,8 +27,17 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
 
     // ---------------- Chat List ----------------------------------
     chatModel = new ChatListModel(this);
-    connect(chatModel, &ChatListModel::chatRemoved, this, [this](QWidget *w) { //
+    connect(chatModel, &ChatListModel::chatWidgetRemoved, this, [this](QWidget *w) { //
         emit chatRemoved(w);
+    });
+    connect(chatModel, &ChatListModel::chatWidgetAdded, this, [this](QWidget *w) { //
+        if (chatModel->rowCount() > 0) {
+            // Select the new chat
+            QModelIndex newIndex = chatModel->index(chatModel->rowCount() - 1, 0);
+            chatList->setCurrentIndex(newIndex);
+            // Emit signal to update main window
+            emit chatSelected(w);
+        }
     });
 
     chatList = new QListView(this);
@@ -113,16 +122,6 @@ void LeftPanelWidget::createChatWidget(const QString &name)
 
         // Create initial chat
         chatModel->addChat(name, newWidget);
-
-        // Select the new chat
-        QModelIndex newIndex = chatModel->index(0, 0);
-        chatList->setCurrentIndex(newIndex);
-
-        // Emit signal to update main window
-        ChatListModel::ChatData *chatData = chatModel->getChatData(0);
-        if (chatData) {
-            emit chatSelected(chatData->widget);
-        }
     }
 }
 

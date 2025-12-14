@@ -80,6 +80,7 @@ void ChatListModel::addChat(const QString &name, ChatPanelWidget *widget)
     beginInsertRows(QModelIndex(), m_chats.size(), m_chats.size());
     m_chats.append(ChatData(name, widget));
     endInsertRows();
+    emit chatWidgetAdded(widget);
 }
 
 void ChatListModel::removeChat(int row)
@@ -87,10 +88,13 @@ void ChatListModel::removeChat(int row)
     if (row < 0 || row >= m_chats.size())
         return;
 
+    QWidget *widget = m_chats[row].widget;
+
     beginRemoveRows(QModelIndex(), row, row);
-    emit chatRemoved(m_chats[row].widget);
     m_chats.removeAt(row);
     endRemoveRows();
+
+    emit chatWidgetRemoved(widget);
 }
 
 void ChatListModel::renameChat(int row, const QString &newName)

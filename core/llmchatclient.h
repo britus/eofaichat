@@ -49,6 +49,7 @@ public:
 
 public slots:
     void setActiveModel(const ModelEntry &model);
+    void cancelRequest();
 
 signals:
     void errorOccurred(const QString &error);

@@ -212,6 +212,24 @@ inline QJsonObject LLMChatClient::buildChatCompletionRequest( //
     return request;
 }
 
+// =========================================================
+
+void LLMChatClient::onError(QNetworkReply::NetworkError error)
+{
+    qCritical().noquote() << "[LLMChatClient] onError reply:" << error;
+    emit networkError(error, "Network error occurred");
+}
+
+void LLMChatClient::onSslErrors(QNetworkReply *reply, const QList<QSslError> &errors)
+{
+    qCritical().noquote() << "[LLMChatClient] onSslErrors reply:" << reply << "ssl:" << errors;
+    emit networkError(QNetworkReply::ProtocolUnknownError, "Network error occurred");
+    // Handle SSL errors
+    for (const QSslError &error : errors) {
+        reportError("SSL Error: " + error.errorString());
+    }
+}
+
 void LLMChatClient::onLLMResponse(QNetworkReply *reply)
 {
     qDebug().noquote() << "[LLMChatClient] onLLMResponse --------------------------";
@@ -252,11 +270,12 @@ void LLMChatClient::onLLMResponse(QNetworkReply *reply)
     // Handle available models response
     if (reply->url().path().contains("/models")) {
         llmModels()->loadFrom(response["data"].toArray());
-        goto finish;
+        qDebug("[LLMChatClient] onLLMResponse: %d LLM models available.", llmModels()->rowCount());
     }
-
     // Handle regular LLM message
-    parseResponse(response);
+    else {
+        parseResponse(response);
+    }
 
 finish:
     reply->deleteLater();
@@ -399,7 +418,7 @@ inline bool LLMChatClient::parseToolCalls(ChatMessage *message, const QJsonArray
         }
         ChatMessage::ToolEntry tool = {};
         QJsonObject toolObject = toolCalls[i].toObject();
-        //qDebug().noquote() << "[LLMChatClient] msgId:" << message->id() << "toolObject:" << toolObject;
+        //qDebug().noquote() << "[LLMChatClient] parseToolCalls msgId:" << message->id() << "toolObject:" << toolObject;
         parseToolCall(toolObject, tool);
         message->mergeToolsFrom(tool);
     }
@@ -408,7 +427,7 @@ inline bool LLMChatClient::parseToolCalls(ChatMessage *message, const QJsonArray
 
 inline bool LLMChatClient::parseChoiceObject(ChatMessage *message, const QJsonObject &choiceObject)
 {
-    //qDebug().noquote() << "[LLMChatClient] msgId:" << message->id() << "choice object:" << choiceObject;
+    //qDebug().noquote() << "[LLMChatClient] parseChoiceObject msgId:" << message->id() << "choice object:" << choiceObject;
 
     QJsonObject choice = choiceObject;
     QJsonValue value;
@@ -576,13 +595,18 @@ inline void LLMChatClient::parseResponse(const QJsonObject &response)
         goto error_exit;
     }
 
+    if (isNew) {
+        chatModel()->addMessage(message);
+    }
+
     // run tooling (tool_calls)
-    if (message->finishReason() == "tool_calls") {
+    if (message->finishReason().toLower().trimmed() == "tool_calls") {
         checkAndRunTooling(message);
     }
 
-    if (isNew) {
-        chatModel()->addMessage(message);
+    // conversation stopped
+    if (message->finishReason().toLower().trimmed() == "stop") {
+        emit streamCompleted();
     }
 
     // sueccess
@@ -600,11 +624,11 @@ inline void LLMChatClient::checkAndRunTooling(ChatMessage *message)
     foreach (const ChatMessage::ToolEntry &tool, message->tools()) {
         // Check for an incomplete tool object based on a streamed response
         if (!tool.isValid()) {
-            qWarning("[LLMChatClient] msgId: %s Invalid tool object in message.", //
+            qWarning("[LLMChatClient] checkAndRunTooling msgId: %s Invalid tool object in message.", //
                      qPrintable(message->id()));
             continue;
         }
-        qDebug("[LLMChatClient] msgId: %s TOOLCALL[%d]: type=%s id=%s function=%s args=%s", //
+        qDebug("[LLMChatClient] checkAndRunTooling msgId: %s tool[%d] type=%s id=%s function=%s args=%s", //
                qPrintable(message->id()),
                tool.toolIndex(),
                qPrintable(tool.m_toolType),
@@ -615,20 +639,11 @@ inline void LLMChatClient::checkAndRunTooling(ChatMessage *message)
     }
 }
 
-void LLMChatClient::onError(QNetworkReply::NetworkError error)
+void LLMChatClient::cancelRequest()
 {
-    qDebug().noquote() << "[LLMChatClient] onError reply:" << error;
-    emit networkError(error, "Network error occurred");
-}
-
-void LLMChatClient::onSslErrors(QNetworkReply *reply, const QList<QSslError> &errors)
-{
-    qDebug().noquote() << "[LLMChatClient] onSslErrors reply:" << reply << "ssl:" << errors;
-    emit networkError(QNetworkReply::ProtocolUnknownError, "Network error occurred");
-    // Handle SSL errors
-    for (const QSslError &error : errors) {
-        reportError("SSL Error: " + error.errorString());
-    }
+    m_networkManager->clearAccessCache();
+    m_networkManager->clearConnectionCache();
+    emit streamCompleted();
 }
 
 void LLMChatClient::setActiveModel(const ModelEntry &model)

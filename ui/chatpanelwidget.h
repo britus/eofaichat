@@ -41,34 +41,37 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
 private slots:
-    void onUpdateChatText(int index, ChatMessage *message, bool removed = false);
+    void onUpdateChatText(int index, ChatMessage *message);
     void onToolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);
     void onHideProgressPopup();
     void onShowProgressPopup();
 
 private:
     // UI
-    QVBoxLayout *messagesLayout;
-    QWidget *messagesContainer;
-    QWidget *chatWidgetContainer;
-    QScrollArea *scrollArea;
-    QTextEdit *messageInput;
-    QPushButton *sendButton;
-    ChatTextWidget *chatWidget;
-    FileListWidget *fileListWidget;
-    QMainWindow *toolsWindow;
+    QVBoxLayout *m_messagesLayout;
+    QWidget *m_messagesContainer;
+    QWidget *m_chatWidgetContainer;
+    QScrollArea *m_scrollArea;
+    QTextEdit *m_messageInput;
+    QPushButton *m_sendButton;
+    ChatTextWidget *m_chatWidget;
+    FileListWidget *m_fileListWidget;
+    AttachButton *m_attachButton;
+    QMainWindow *m_toolsWindow;
     // LLM connection client
-    LLMChatClient *llmclient;
+    LLMChatClient *m_llmclient;
     // Syntax color model used by all ChatTextWidget instances
-    SyntaxColorModel *syntaxModel;
+    SyntaxColorModel *m_syntaxModel;
     // LLM Tooling
-    ToolModel *toolModel;
+    ToolModel *m_toolModel;
     // File list model and widget
-    FileListModel *fileListModel;
+    FileListModel *m_fileListModel;
     // Progress popup widget
-    ProgressPopup *progressPopup;
+    ProgressPopup *m_progressPopup;
     // Attach file dialog
-    QString lastDirectory;
+    QString m_lastDirectory;
+    // on action
+    bool m_isConversating;
 
 #if 0
     QMap<ChatMessage *, ChatTextWidget *> m_messages;
@@ -82,6 +85,7 @@ private:
     inline void createAttachButton(QHBoxLayout *);
     inline void createToolsButton(QHBoxLayout *);
     inline void createSendButton(QHBoxLayout *);
+    inline void reportLLMError(QNetworkReply::NetworkError error, const QString &message);
     inline void connectLLMClient();
     inline void connectChatModel();
 };
