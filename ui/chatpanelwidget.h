@@ -1,31 +1,17 @@
 #pragma once
 #include <attachbutton.h>
-#include <chatmodel.h>
 #include <chattextwidget.h>
-#include <filelistmodel.h>
 #include <filelistwidget.h>
-#include <filenamelabel.h>
 #include <llmchatclient.h>
-#include <modellistmodel.h>
+#include <llmconnectionmodel.h>
 #include <progresspopup.h>
 #include <syntaxcolormodel.h>
 #include <toolmodel.h>
-#include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
-#include <QGridLayout>
-#include <QJsonDocument>
 #include <QKeyEvent>
-#include <QLabel>
-#include <QLineEdit>
-#include <QListWidget>
-#include <QMainWindow>
-#include <QMenu>
-#include <QMimeData>
 #include <QPushButton>
-#include <QScrollArea>
 #include <QTextEdit>
-#include <QVBoxLayout>
 #include <QWidget>
 
 class ChatPanelWidget : public QWidget
@@ -33,7 +19,7 @@ class ChatPanelWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit ChatPanelWidget(SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent = nullptr);
+    explicit ChatPanelWidget(LLMConnectionModel::ConnectionData *connection, SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent = nullptr);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -48,15 +34,12 @@ private slots:
 
 private:
     // UI
-    QVBoxLayout *m_messagesLayout;
-    QWidget *m_messagesContainer;
-    QScrollArea *m_scrollArea;
+    ChatTextWidget *m_chatView;
     QTextEdit *m_messageInput;
     QPushButton *m_sendButton;
-    ChatTextWidget *m_chatWidget;
-    FileListWidget *m_fileListWidget;
     AttachButton *m_attachButton;
-    QMainWindow *m_toolsWindow;
+    // LLM connection data
+    LLMConnectionModel::ConnectionData *m_llmConnection;
     // LLM connection client
     LLMChatClient *m_llmclient;
     // Syntax color model used by all ChatTextWidget instances
@@ -72,18 +55,16 @@ private:
     // on action
     bool m_isConversating;
 
-#if 0
-    QMap<ChatMessage *, ChatTextWidget *> m_messages;
-#endif
-
 private:
-    inline void createChatArea(QVBoxLayout *);
-    inline void createFileListWidget(QVBoxLayout *);
-    inline void createInputWidget(QVBoxLayout *);
-    inline void createLLMSelector(QVBoxLayout *);
-    inline void createAttachButton(QHBoxLayout *);
-    inline void createToolsButton(QHBoxLayout *);
-    inline void createSendButton(QHBoxLayout *);
+    inline QWidget *createChatArea(QWidget *);
+    inline QWidget *createInputArea(QWidget *);
+    inline QWidget *createFileListWidget(QWidget *);
+    inline QWidget *createInputWidget(QWidget *);
+    inline QWidget *createLLMSelector(QWidget *);
+    inline QWidget *createButtonBox(QWidget *);
+    inline AttachButton *createAttachButton(QWidget *);
+    inline QPushButton *createToolsButton(QWidget *);
+    inline QPushButton *createSendButton(QWidget *);
     inline void reportLLMError(QNetworkReply::NetworkError error, const QString &message);
     inline void connectLLMClient();
     inline void connectChatModel();

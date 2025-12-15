@@ -4,20 +4,25 @@
 #include <QObject>
 #include <QString>
 
-struct ModelEntry
-{
-    QString id;
-    QString object;
-    QString ownedBy;
-};
-Q_DECLARE_METATYPE(ModelEntry)
-
 class ModelListModel : public QAbstractListModel
 {
     Q_OBJECT
 
 public:
-    enum Roles { IdRole = Qt::UserRole + 1, ObjectRole, OwnedByRole, ModelEntryRole };
+    enum Roles {
+        IdRole = Qt::UserRole + 1,
+        ObjectRole,
+        OwnedByRole,
+        ModelEntryRole,
+    };
+    Q_ENUM(Roles)
+
+    struct ModelEntry
+    {
+        QString id;
+        QString object;
+        QString ownedBy;
+    };
 
     explicit ModelListModel(QObject *parent = nullptr);
 
@@ -36,9 +41,9 @@ public:
     inline const QList<ModelEntry> &modelList() const { return m_entries; }
 
 signals:
-    void entryAdded(int row, const ModelEntry &entry);
-    void entryUpdated(int row, const ModelEntry &entry);
-    void entryRemoved(int row, const ModelEntry &entry);
+    void entryAdded(int row, const ModelListModel::ModelEntry &entry);
+    void entryUpdated(int row, const ModelListModel::ModelEntry &entry);
+    void entryRemoved(int row, const ModelListModel::ModelEntry &entry);
     void modelsLoaded();
 
 public:
@@ -50,3 +55,5 @@ public:
 private:
     QList<ModelEntry> m_entries;
 };
+Q_DECLARE_METATYPE(ModelListModel::ModelEntry)
+Q_DECLARE_METATYPE(ModelListModel::Roles)

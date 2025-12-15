@@ -27,24 +27,12 @@ ProgressPopup::ProgressPopup(QWidget *parent)
 
 ProgressPopup::~ProgressPopup()
 {
-    //qDebug() << __func__;
-}
-
-static inline MainWindow *mainWindow()
-{
-    // Finding the first QMainWindow in QApplication
-    const QWidgetList allWidgets = QApplication::topLevelWidgets();
-    for (QObject *obj : allWidgets) {
-        if (MainWindow *mw = qobject_cast<MainWindow *>(obj)) {
-            return mw;
-        }
-    }
-    return nullptr;
+    //--
 }
 
 void ProgressPopup::showCentered()
 {
-    if (MainWindow *w = mainWindow()) {
+    if (MainWindow *w = MainWindow::window()) {
         // Center the popup on the main window
         QRect mainWindowRect = w->frameGeometry();
         QRect popupRect = frameGeometry();
@@ -56,7 +44,7 @@ void ProgressPopup::showCentered()
 
 void ProgressPopup::setBlurEffect(bool enable)
 {
-    if (MainWindow *mw = mainWindow()) {
+    if (MainWindow *mw = MainWindow::window()) {
         if (QWidget *cw = mw->centralWidget()) {
             cw->setEnabled(!enable);
             QGraphicsBlurEffect *bf = qobject_cast<QGraphicsBlurEffect *>(cw->graphicsEffect());

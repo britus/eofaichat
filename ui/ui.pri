@@ -12,6 +12,7 @@ HEADERS += \
     $$PWD/filenamelabel.h \
     $$PWD/leftpanelwidget.h \
     $$PWD/llmconnectionsdialog.h \
+    $$PWD/llmconnectionselection.h \
     $$PWD/mainwindow.h \
     $$PWD/progresspopup.h \
     $$PWD/toolswidget.h
@@ -27,6 +28,7 @@ SOURCES += \
     $$PWD/filenamelabel.cpp \
     $$PWD/leftpanelwidget.cpp \
     $$PWD/llmconnectionsdialog.cpp \
+    $$PWD/llmconnectionselection.cpp \
     $$PWD/mainwindow.cpp \
     $$PWD/progresspopup.cpp \
     $$PWD/toolswidget.cpp

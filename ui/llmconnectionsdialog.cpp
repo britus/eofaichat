@@ -87,6 +87,12 @@ void LLMConnectionsDialog::setupUI()
     formLayout->addWidget(new QLabel(tr("API Key:"), m_formWidget), 3, 0);
     formLayout->addWidget(m_apiKeyEdit, 3, 1);
 
+    m_authTypeCombo = new QComboBox(m_formWidget);
+    m_authTypeCombo->addItem(tr("Token"));
+    m_authTypeCombo->addItem(tr("Bearer"));
+    formLayout->addWidget(new QLabel(tr("Auth.Type:"), m_formWidget), 4, 0);
+    formLayout->addWidget(m_authTypeCombo, 4, 1);
+
     QGroupBox *optionBox = new QGroupBox(m_formWidget);
     optionBox->setTitle(tr("Options"));
 
@@ -193,8 +199,8 @@ void LLMConnectionsDialog::clearForm()
     m_apiKeyEdit->clear();
     m_isEnabledCheck->setChecked(false);
     m_isDefaultCheck->setChecked(false);
-    // set custom
-    m_providerCombo->setCurrentIndex(m_providerCombo->count() - 1);
+    m_providerCombo->setCurrentIndex(m_providerCombo->count() - 1); // set custom
+    m_providerCombo->setCurrentIndex(0);
     // Disable editing buttons when form is cleared
     m_updateButton->setEnabled(false);
     m_removeButton->setEnabled(false);
@@ -203,29 +209,39 @@ void LLMConnectionsDialog::clearForm()
 
 void LLMConnectionsDialog::populateForm(const LLMConnectionModel::ConnectionData &connection)
 {
-    m_nameEdit->setText(connection.name);
-    // Find and set provider
-    int index = m_providerCombo->findText(connection.provider);
+    m_nameEdit->setText(connection.name());
+    // Find and set m_provider
+    int index = m_providerCombo->findText(connection.provider());
     if (index >= 0) {
         m_providerCombo->setCurrentIndex(index);
     } else {
-        m_providerCombo->setCurrentText(connection.provider);
+        m_providerCombo->setCurrentText(connection.provider());
     }
-    m_apiUrlEdit->setText(connection.apiUrl);
-    m_apiKeyEdit->setText(connection.apiKey);
-    m_isEnabledCheck->setChecked(connection.isEnabled);
-    m_isDefaultCheck->setChecked(connection.isDefault);
+    switch (connection.authType()) {
+        case LLMConnectionModel::ConnectionData::AuthType::AuthToken: {
+            m_authTypeCombo->setCurrentIndex(0);
+            break;
+        }
+        case LLMConnectionModel::ConnectionData::AuthType::AuthBearer: {
+            m_authTypeCombo->setCurrentIndex(1);
+            break;
+        }
+    }
+    m_apiUrlEdit->setText(connection.apiUrl());
+    m_apiKeyEdit->setText(connection.apiKey());
+    m_isEnabledCheck->setChecked(connection.isEnabled());
+    m_isDefaultCheck->setChecked(connection.isDefault());
 }
 
 inline LLMConnectionModel::ConnectionData LLMConnectionsDialog::getFormData() const
 {
     LLMConnectionModel::ConnectionData connection;
-    connection.name = m_nameEdit->text().trimmed();
-    connection.provider = m_providerCombo->currentText();
-    connection.apiUrl = m_apiUrlEdit->text().trimmed();
-    connection.apiKey = m_apiKeyEdit->text();
-    connection.isEnabled = m_isEnabledCheck->isChecked();
-    connection.isDefault = m_isDefaultCheck->isChecked();
+    connection.setName(m_nameEdit->text().trimmed());
+    connection.setProvider(m_providerCombo->currentText());
+    connection.setApiUrl(m_apiUrlEdit->text().trimmed());
+    connection.setApiKey(m_apiKeyEdit->text());
+    connection.setEnabled(m_isEnabledCheck->isChecked());
+    connection.setDefault(m_isDefaultCheck->isChecked());
     return connection;
 }
 
@@ -377,7 +393,7 @@ void LLMConnectionsDialog::onTestClicked()
     QString connectionName = m_model->data(m_model->index(currentIndex.row(), 0), Qt::DisplayRole).toString();
     LLMConnectionModel::ConnectionData connection = m_model->getConnection(connectionName);
 
-    if (!connection.isEnabled) {
+    if (!connection.isEnabled()) {
         showTestResult(tr("Connection is disabled. Cannot test."));
         return;
     }
@@ -390,7 +406,7 @@ void LLMConnectionsDialog::onTestClicked()
     // with proper error handling and async operations
 
     // For now, we'll simulate a test by checking if the URL is valid
-    QUrl url(connection.apiUrl + "/models");
+    QUrl url(connection.apiUrl() + "/models");
     if (!url.isValid()) {
         showTestResult(tr("Error: Invalid URL format."));
         return;
@@ -399,8 +415,8 @@ void LLMConnectionsDialog::onTestClicked()
     QNetworkRequest request(url);
     request.setTransferTimeout(2000);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    if (!connection.apiKey.isEmpty()) {
-        request.setRawHeader("Authorization", "Bearer " + connection.apiKey.toUtf8());
+    if (!connection.apiKey().isEmpty()) {
+        request.setRawHeader("Authorization", "Bearer " + connection.apiKey().toUtf8());
         //request.setRawHeader("Authorization", "Token " + m_apiKey.toUtf8());
     }
 

@@ -42,14 +42,27 @@ void LLMConnectionModel::loadConnections()
                         QJsonObject connectionObj = connectionValue.toObject();
 
                         ConnectionData connection;
-                        connection.name = connectionObj["name"].toString();
-                        connection.provider = connectionObj["provider"].toString();
-                        connection.apiUrl = connectionObj["apiUrl"].toString();
-                        connection.apiKey = connectionObj["apiKey"].toString();
-                        connection.isDefault = connectionObj["isDefault"].toBool(false);
-                        connection.isEnabled = connectionObj["isEnabled"].toBool(true);
+                        connection.m_name = connectionObj["name"].toString();
+                        connection.m_provider = connectionObj["provider"].toString();
+                        connection.m_apiUrl = connectionObj["apiUrl"].toString();
+                        connection.m_apiKey = connectionObj["apiKey"].toString();
+                        connection.m_isDefault = connectionObj["isDefault"].toBool(false);
+                        connection.m_isEnabled = connectionObj["isEnabled"].toBool(true);
 
-                        m_connections[connection.name] = connection;
+                        // Load endpoints map
+                        if (connectionObj.contains("endpoints") && connectionObj["endpoints"].isObject()) {
+                            QJsonObject endpointsObj = connectionObj["endpoints"].toObject();
+                            for (auto it = endpointsObj.begin(); it != endpointsObj.end(); ++it) {
+                                bool ok;
+                                int endpointValue = it.key().toInt(&ok);
+                                if (ok) {
+                                    ConnectionData::Endpoints endpoint = static_cast<ConnectionData::Endpoints>(endpointValue);
+                                    connection.m_endpoints[endpoint] = it.value().toString();
+                                }
+                            }
+                        }
+
+                        m_connections[connection.m_name] = connection;
                     }
                 }
             }
@@ -75,12 +88,20 @@ void LLMConnectionModel::saveConnections()
     QJsonArray connectionsArray;
     for (const auto &connection : m_connections.values()) {
         QJsonObject connectionObj;
-        connectionObj["name"] = connection.name;
-        connectionObj["provider"] = connection.provider;
-        connectionObj["apiUrl"] = connection.apiUrl;
-        connectionObj["apiKey"] = connection.apiKey;
-        connectionObj["isDefault"] = connection.isDefault;
-        connectionObj["isEnabled"] = connection.isEnabled;
+        connectionObj["name"] = connection.name();
+        connectionObj["provider"] = connection.provider();
+        connectionObj["apiUrl"] = connection.apiUrl();
+        connectionObj["apiKey"] = connection.apiKey();
+        connectionObj["isDefault"] = connection.isDefault();
+        connectionObj["isEnabled"] = connection.isEnabled();
+
+        // Save endpoints map
+        QJsonObject endpointsObj;
+        for (auto it = connection.m_endpoints.begin(); it != connection.m_endpoints.end(); ++it) {
+            endpointsObj[QString::number(it.key())] = it.value();
+        }
+        connectionObj["endpoints"] = endpointsObj;
+
         connectionsArray.append(connectionObj);
     }
 
@@ -103,7 +124,7 @@ QList<LLMConnectionModel::ConnectionData> LLMConnectionModel::getAllConnections(
 LLMConnectionModel::ConnectionData LLMConnectionModel::getConnection(const QString &name) const
 {
     foreach (const auto &connection, m_connections.values()) {
-        if (connection.name == name) {
+        if (connection.m_name == name) {
             return connection;
         }
     }
@@ -115,7 +136,7 @@ void LLMConnectionModel::addConnection(const ConnectionData &connection)
 {
     // Check if connection with this name already exists
     foreach (auto &nameKey, m_connections.keys()) {
-        if (nameKey == connection.name) {
+        if (nameKey == connection.m_name) {
             // Update existing connection
             m_connections[nameKey] = connection;
             saveConnections();
@@ -124,7 +145,7 @@ void LLMConnectionModel::addConnection(const ConnectionData &connection)
     }
 
     // Add new connection
-    m_connections[connection.name] = connection;
+    m_connections[connection.m_name] = connection;
     saveConnections();
 }
 
@@ -159,8 +180,8 @@ void LLMConnectionModel::setDefaultConnection(const QString &name)
     // Clear previous default flag
     foreach (auto &nameKey, m_connections.keys()) {
         ConnectionData c = m_connections[nameKey];
-        if (c.isDefault) {
-            c.isDefault = false;
+        if (c.m_isDefault) {
+            c.m_isDefault = false;
             m_connections[nameKey] = c;
         }
     }
@@ -169,7 +190,7 @@ void LLMConnectionModel::setDefaultConnection(const QString &name)
     foreach (auto &nameKey, m_connections.keys()) {
         if (nameKey == name) {
             ConnectionData c = m_connections[nameKey];
-            c.isDefault = true;
+            c.m_isDefault = true;
             m_connections[nameKey] = c;
             break;
         }
@@ -206,59 +227,78 @@ QString LLMConnectionModel::getConfigFileName() const
 
 void LLMConnectionModel::loadDefaultConnections()
 {
-    m_connections["LLM-Studio Server"] = {
-        .name = "LLM-Studio Server",
-        .provider = "LLM-Studio",
-        .apiUrl = "http://localhost:1234/v1/chat/completions",
-        .apiKey = "",
-        .isDefault = true,
-        .isEnabled = true,
-    };
+    ConnectionData data;
 
-    m_connections["llamacpp-server"] = {
-        .name = "llamacpp-server",
-        .provider = "llamacpp",
-        .apiUrl = "http://localhost:8000/v1/chat/completions",
-        .apiKey = "",
-        .isDefault = false,
-        .isEnabled = true,
-    };
+    data = ConnectionData( //
+        "LLM-Studio Server",
+        "LLM-Studio",
+        "http://localhost:1234",
+        "",
+        true,
+        true);
+    data.setEndpointUri(ConnectionData::EndpointModels, "/v1/models");
+    data.setEndpointUri(ConnectionData::EndpointCompletion, "/v1/chat/completions");
+    m_connections["LLM-Studio Server"] = data;
 
-    m_connections["OpenAI GPT-4"] = {
-        .name = "OpenAI GPT-4",
-        .provider = "OpenAI",
-        .apiUrl = "https://api.openai.com/v1/chat/completions",
-        .apiKey = "",
-        .isDefault = false,
-        .isEnabled = true,
-    };
+    // /v1/chat/completions
+    data = ConnectionData( //
+        "llamacpp-server",
+        "llamacpp",
+        "http://localhost:8000",
+        "",
+        false,
+        true);
+    data.setEndpointUri(ConnectionData::EndpointModels, "/v1/models");
+    data.setEndpointUri(ConnectionData::EndpointCompletion, "/v1/chat/completions");
+    m_connections["llamacpp-server"] = data;
 
-    m_connections["OpenAI GPT-3.5"] = {
-        .name = "OpenAI GPT-3.5",
-        .provider = "OpenAI",
-        .apiUrl = "https://api.openai.com/v1/chat/completions",
-        .apiKey = "",
-        .isDefault = false,
-        .isEnabled = true,
-    };
+    // /v1/chat/completions
+    data = ConnectionData( //
+        "OpenAI GPT-4",
+        "OpenAI",
+        "https://api.openai.com",
+        "",
+        false,
+        true);
+    data.setEndpointUri(ConnectionData::EndpointModels, "/v1/models");
+    data.setEndpointUri(ConnectionData::EndpointCompletion, "/v1/chat/completions");
+    m_connections["OpenAI GPT-4"] = data;
 
-    m_connections["Anthropic Claude"] = {
-        .name = "Anthropic Claude",
-        .provider = "Anthropic",
-        .apiUrl = "https://api.anthropic.com/v1/messages",
-        .apiKey = "",
-        .isDefault = false,
-        .isEnabled = true,
-    };
+    // /v1/chat/completions
+    data = ConnectionData( //
+        "OpenAI GPT-3.5",
+        "OpenAI",
+        "https://api.openai.com",
+        "",
+        false,
+        true);
+    data.setEndpointUri(ConnectionData::EndpointModels, "/v1/models");
+    data.setEndpointUri(ConnectionData::EndpointCompletion, "/v1/chat/completions");
+    m_connections["OpenAI GPT-3.5"] = data;
 
-    m_connections["Hugging Face"] = {
-        .name = "Hugging Face",
-        .provider = "Hugging Face",
-        .apiUrl = "https://api-inference.huggingface.co/v1/chat/completions",
-        .apiKey = "",
-        .isDefault = false,
-        .isEnabled = true,
-    };
+    // /v1/messages
+    data = ConnectionData( //
+        "Anthropic Claude",
+        "Anthropic",
+        "https://api.anthropic.com",
+        "",
+        false,
+        true);
+    data.setEndpointUri(ConnectionData::EndpointModels, "/v1/models");
+    data.setEndpointUri(ConnectionData::EndpointCompletion, "/v1/messages");
+    m_connections["Anthropic Claude"] = data;
+
+    // /v1/chat/completions
+    data = ConnectionData( //
+        "Hugging Face",
+        "Hugging Face",
+        "https://api-inference.huggingface.co",
+        "",
+        false,
+        true);
+    data.setEndpointUri(ConnectionData::EndpointModels, "/v1/models");
+    data.setEndpointUri(ConnectionData::EndpointCompletion, "/v1/chat/completions");
+    m_connections["Hugging Face"] = data;
 
     m_defaultConnectionName = "LLM-Studio Server";
     saveConnections();
@@ -289,30 +329,30 @@ QVariant LLMConnectionModel::data(const QModelIndex &index, int role) const
     const ConnectionData &connection = it.value();
 
     switch (role) {
-    case Qt::DisplayRole:
-        switch (index.column()) {
-        case NameColumn:
-            return connection.name;
-        case ProviderColumn:
-            return connection.provider;
-        case ApiUrlColumn:
-            return connection.apiUrl;
-        case IsDefaultColumn:
-            return connection.isDefault ? "Yes" : "No";
-        case IsEnabledColumn:
-            return connection.isEnabled ? "Yes" : "No";
+        case Qt::DisplayRole:
+            switch (index.column()) {
+                case NameColumn:
+                    return connection.m_name;
+                case ProviderColumn:
+                    return connection.m_provider;
+                case ApiUrlColumn:
+                    return connection.m_apiUrl;
+                case IsDefaultColumn:
+                    return connection.m_isDefault ? "Yes" : "No";
+                case IsEnabledColumn:
+                    return connection.m_isEnabled ? "Yes" : "No";
+                default:
+                    return QVariant();
+            }
+        case Qt::CheckStateRole:
+            if (index.column() == IsDefaultColumn) {
+                return connection.m_isDefault ? Qt::Checked : Qt::Unchecked;
+            } else if (index.column() == IsEnabledColumn) {
+                return connection.m_isEnabled ? Qt::Checked : Qt::Unchecked;
+            }
+            return QVariant();
         default:
             return QVariant();
-        }
-    case Qt::CheckStateRole:
-        if (index.column() == IsDefaultColumn) {
-            return connection.isDefault ? Qt::Checked : Qt::Unchecked;
-        } else if (index.column() == IsEnabledColumn) {
-            return connection.isEnabled ? Qt::Checked : Qt::Unchecked;
-        }
-        return QVariant();
-    default:
-        return QVariant();
     }
 }
 
@@ -323,18 +363,18 @@ QVariant LLMConnectionModel::headerData(int section, Qt::Orientation orientation
 
     if (orientation == Qt::Horizontal) {
         switch (section) {
-        case NameColumn:
-            return tr("Name");
-        case ProviderColumn:
-            return tr("Provider");
-        case ApiUrlColumn:
-            return tr("API URL");
-        case IsDefaultColumn:
-            return tr("Default");
-        case IsEnabledColumn:
-            return tr("Enabled");
-        default:
-            return QVariant();
+            case NameColumn:
+                return tr("Name");
+            case ProviderColumn:
+                return tr("Provider");
+            case ApiUrlColumn:
+                return tr("API URL");
+            case IsDefaultColumn:
+                return tr("Default");
+            case IsEnabledColumn:
+                return tr("Enabled");
+            default:
+                return QVariant();
         }
     }
     return QVariant();
@@ -346,12 +386,12 @@ Qt::ItemFlags LLMConnectionModel::flags(const QModelIndex &index) const
         return Qt::NoItemFlags;
 
     Qt::ItemFlags flags = QAbstractTableModel::flags(index);
-    
+
     // Make all columns editable except the default column
     if (index.column() != IsDefaultColumn) {
         flags |= Qt::ItemIsEditable;
     }
-    
+
     return flags;
 }
 
@@ -366,67 +406,61 @@ bool LLMConnectionModel::setData(const QModelIndex &index, const QVariant &value
     ConnectionData &connection = it.value();
 
     bool changed = false;
-    
+
     switch (role) {
-    case Qt::EditRole:
-        switch (index.column()) {
-        case NameColumn:
-            if (connection.name != value.toString()) {
-                connection.name = value.toString();
-                changed = true;
+        case Qt::EditRole:
+            switch (index.column()) {
+                case NameColumn:
+                    if (connection.m_name != value.toString()) {
+                        connection.m_name = value.toString();
+                        changed = true;
+                    }
+                    break;
+                case ProviderColumn:
+                    if (connection.m_provider != value.toString()) {
+                        connection.m_provider = value.toString();
+                        changed = true;
+                    }
+                    break;
+                case ApiUrlColumn:
+                    if (connection.m_apiUrl != value.toString()) {
+                        connection.m_apiUrl = value.toString();
+                        changed = true;
+                    }
+                    break;
+                default:
+                    return false;
             }
             break;
-        case ProviderColumn:
-            if (connection.provider != value.toString()) {
-                connection.provider = value.toString();
-                changed = true;
-            }
-            break;
-        case ApiUrlColumn:
-            if (connection.apiUrl != value.toString()) {
-                connection.apiUrl = value.toString();
-                changed = true;
-            }
-            break;
-        case IsEnabledColumn:
-            if (connection.isEnabled != value.toBool()) {
-                connection.isEnabled = value.toBool();
-                changed = true;
+        case Qt::CheckStateRole:
+            if (index.column() == IsDefaultColumn) {
+                bool isDefault = (value.toInt() == Qt::Checked);
+                if (connection.m_isDefault != isDefault) {
+                    connection.m_isDefault = isDefault;
+                    changed = true;
+                }
+            } else if (index.column() == IsEnabledColumn) {
+                bool isEnabled = (value.toInt() == Qt::Checked);
+                if (connection.m_isEnabled != isEnabled) {
+                    connection.m_isEnabled = isEnabled;
+                    changed = true;
+                }
             }
             break;
         default:
             return false;
-        }
-        break;
-    case Qt::CheckStateRole:
-        if (index.column() == IsDefaultColumn) {
-            bool isDefault = (value.toInt() == Qt::Checked);
-            if (connection.isDefault != isDefault) {
-                connection.isDefault = isDefault;
-                changed = true;
-            }
-        } else if (index.column() == IsEnabledColumn) {
-            bool isEnabled = (value.toInt() == Qt::Checked);
-            if (connection.isEnabled != isEnabled) {
-                connection.isEnabled = isEnabled;
-                changed = true;
-            }
-        }
-        break;
-    default:
-        return false;
     }
 
     if (changed) {
         // If this connection is being set as default, update the default connection name
-        if (index.column() == IsDefaultColumn && connection.isDefault) {
+        if (index.column() == IsDefaultColumn && connection.m_isDefault) {
             m_defaultConnectionName = name;
         }
-        
+
         saveConnections();
         emit dataChanged(index, index, {role});
         return true;
     }
-    
+
     return false;
 }

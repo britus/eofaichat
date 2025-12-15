@@ -7,7 +7,6 @@ HEADERS += \
     $$PWD/chatmodel.h \
     $$PWD/filelistmodel.h \
     $$PWD/llmconnectionmodel.h \
-    $$PWD/modelentry.h \
     $$PWD/modellistmodel.h \
     $$PWD/syntaxcolormodel.h \
     $$PWD/toolmodel.h

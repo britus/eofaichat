@@ -14,6 +14,7 @@ LLMChatClient::LLMChatClient(ToolModel *toolModel, ChatModel *chatModel, QObject
     , m_chatModel(chatModel)
     , m_llmModels(new ModelListModel(this))
     , m_networkManager(new QNetworkAccessManager(this))
+    , m_connection(nullptr)
     , m_timeout(60000) // 1m default
     , m_isResponseStream(false)
 {
@@ -28,17 +29,9 @@ LLMChatClient::~LLMChatClient()
     }
 }
 
-void LLMChatClient::setServerUrl(const QString &url)
+void LLMChatClient::setConnection(LLMConnectionModel::ConnectionData *connection)
 {
-    m_serverUrl = url;
-    if (!m_serverUrl.endsWith('/')) {
-        m_serverUrl.append('/');
-    }
-}
-
-void LLMChatClient::setApiKey(const QString &key)
-{
-    m_apiKey = key;
+    m_connection = connection;
 }
 
 void LLMChatClient::setTimeout(int milliseconds)
@@ -155,14 +148,23 @@ void LLMChatClient::sendChat(const QString &model, const QList<QJsonObject> &mes
 
 void LLMChatClient::sendChat(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream)
 {
-    QJsonObject requestBody = buildChatCompletionRequest(model, messages, parameters, stream);
-    sendRequest(requestBody, "v1/chat/completions");
+    if (m_connection && m_connection->isValid()) {
+        QJsonObject requestBody = buildChatCompletionRequest(model, messages, parameters, stream);
+        sendRequest(requestBody,
+                    m_connection->endpointUri( //
+                        LLMConnectionModel::ConnectionData::EndpointCompletion));
+    }
 }
 
 void LLMChatClient::listModels()
 {
-    QJsonObject requestBody;
-    sendRequest(requestBody, "v1/models", true);
+    if (m_connection && m_connection->isValid()) {
+        QJsonObject requestBody;
+        sendRequest(requestBody,
+                    m_connection->endpointUri( //
+                        LLMConnectionModel::ConnectionData::EndpointModels),
+                    true);
+    }
 }
 
 inline void LLMChatClient::reportError(const QString &message)
@@ -174,19 +176,36 @@ inline void LLMChatClient::reportError(const QString &message)
 
 inline void LLMChatClient::sendRequest(const QJsonObject &requestBody, const QString &endpoint, bool isGetMethod)
 {
-    if (m_serverUrl.isEmpty()) {
+    if (!m_connection || !m_connection->isValid()) {
         reportError("Server URL not set");
         return;
     }
 
-    QUrl url(m_serverUrl + endpoint);
+    QString apiUrl = m_connection->apiUrl();
+    if (!apiUrl.endsWith('/') && !endpoint.startsWith("/")) {
+        apiUrl + "/" + endpoint;
+    } else if (apiUrl.endsWith("/") && endpoint.startsWith("/")) {
+        apiUrl = apiUrl + endpoint.mid(1);
+    } else {
+        apiUrl = apiUrl + endpoint;
+    }
+
+    QUrl url(apiUrl);
     QNetworkRequest request(url);
 
     request.setTransferTimeout(m_timeout);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    if (!m_apiKey.isEmpty()) {
-        request.setRawHeader("Authorization", "Bearer " + m_apiKey.toUtf8());
-        //request.setRawHeader("Authorization", "Token " + m_apiKey.toUtf8());
+    if (!m_connection->apiKey().isEmpty()) {
+        switch (m_connection->authType()) {
+            case LLMConnectionModel::ConnectionData::AuthType::AuthToken: {
+                request.setRawHeader("Authorization", "Token " + m_connection->apiKey().toUtf8());
+                break;
+            }
+            case LLMConnectionModel::ConnectionData::AuthType::AuthBearer: {
+                request.setRawHeader("Authorization", "Bearer " + m_connection->apiKey().toUtf8());
+                break;
+            }
+        }
     }
 
     // ensure to handle regular LLM messages
@@ -729,7 +748,7 @@ void LLMChatClient::cancelRequest()
     emit streamCompleted();
 }
 
-void LLMChatClient::setActiveModel(const ModelEntry &model)
+void LLMChatClient::setActiveModel(const ModelListModel::ModelEntry &model)
 {
     m_llmModel = model;
 }

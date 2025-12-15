@@ -19,7 +19,7 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , settingsManager(new SettingsManager(this))
+    , m_settingsManager(new SettingsManager(this))
     , m_connectionModel(new LLMConnectionModel(this))
     , m_syntaxModel(new SyntaxColorModel(this))
     , m_toolModel(new ToolModel(this))
@@ -27,7 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle(qApp->applicationDisplayName());
     setWindowIcon(QIcon(":/assets/eofaichat.png"));
     setWindowFlag(Qt::WindowType::Window, true);
-    setMinimumSize(QSize(1024, 720));
+    setMinimumSize(QSize(720, 680));
 
     m_centralWidget = new QWidget(this);
     setCentralWidget(m_centralWidget);
@@ -56,11 +56,13 @@ MainWindow::MainWindow(QWidget *parent)
 
     QStatusBar *statusbar = new QStatusBar(this);
     statusbar->setSizeGripEnabled(true);
-    statusbar->showMessage(QStringLiteral("%1 | %2 | Copyright © 2025 by EoF Software Labs").arg(qApp->applicationDisplayName(), qApp->applicationVersion()));
+    statusbar->showMessage(                                               //
+        QStringLiteral("%1 | %2 | Copyright © 2025 by EoF Software Labs") //
+            .arg(qApp->applicationDisplayName(), qApp->applicationVersion()));
     setStatusBar(statusbar);
 
     // Load window size and position
-    settingsManager->loadWindowSize(this);
+    m_settingsManager->loadWindowSize(this);
 
     QSplitter *splitter = new QSplitter(Qt::Horizontal, m_centralWidget);
     m_centralWidget->layout()->addWidget(splitter);
@@ -69,21 +71,39 @@ MainWindow::MainWindow(QWidget *parent)
     splitter->setHandleWidth(10);
 
     // Load splitter position
-    settingsManager->loadSplitterPosition(splitter);
+    m_settingsManager->loadSplitterPosition(splitter);
 
-    connect(splitter, &QSplitter::splitterMoved, this, [this, splitter](int, int) { settingsManager->saveSplitterPosition(splitter); });
-    connect(qApp, &QApplication::aboutToQuit, this, [this] { settingsManager->saveWindowSize(this); });
+    connect(splitter, &QSplitter::splitterMoved, this, [this, splitter](int, int) { //
+        m_settingsManager->saveSplitterPosition(splitter);
+    });
+    connect(qApp, &QApplication::aboutToQuit, this, [this] { //
+        m_settingsManager->saveWindowSize(this);
+    });
 
     // Setup menu bar
     setupMenuBar();
 
     // Create initial chat
-    leftPanel->createChatWidget(tr("New LLM chat"));
+    QTimer::singleShot(500, this, [leftPanel]() { //
+        leftPanel->createChatWidget(tr("New LLM chat"));
+    });
 }
 
 MainWindow::~MainWindow()
 {
-    settingsManager->saveWindowSize(this);
+    m_settingsManager->saveWindowSize(this);
+}
+
+MainWindow *MainWindow::window()
+{
+    // Finding the first QMainWindow in QApplication
+    const QWidgetList allWidgets = QApplication::topLevelWidgets();
+    for (QObject *obj : allWidgets) {
+        if (MainWindow *mw = qobject_cast<MainWindow *>(obj)) {
+            return mw;
+        }
+    }
+    return nullptr;
 }
 
 extern int loadStyleSheet(QApplication *app, const QString &name);

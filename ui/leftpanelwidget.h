@@ -1,6 +1,7 @@
 #pragma once
 #include <chatlistmodel.h>
 #include <chatpanelwidget.h>
+#include <llmconnectionmodel.h>
 #include <QAbstractItemModel>
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
@@ -47,16 +48,18 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
 private:
-    ChatListModel *chatModel;
-    QListView *chatList; // Changed from QListWidget to QListView
-    QPushButton *newChatButton;
-    QPushButton *updatesButton;
-    QPushButton *downloadsButton;
-    QPushButton *aboutButton;
-    QWidget *trashConfirmWidget;
-    QPushButton *trashYes;
-    QPushButton *trashNo;
-    QTimer *autoHideTimer;
-    int pendingDeleteIndex = -1;
-    QMenu *contextMenu;
+    ChatListModel *m_chatModel;
+    LLMConnectionModel *m_llmModel;
+    QListView *m_chatList; // Changed from QListWidget to QListView
+    QPushButton *m_newChatButton;
+    QPushButton *m_updatesButton;
+    QPushButton *m_downloadsButton;
+    QPushButton *m_aboutButton;
+    QWidget *m_trashConfirmWidget;
+    QPushButton *m_trashYes;
+    QPushButton *m_trashNo;
+    QTimer *m_autoHideTimer;
+    int m_pendingDeleteIndex = -1;
+    QMenu *m_contextMenu;
+    LLMConnectionModel::ConnectionData m_connection;
 };

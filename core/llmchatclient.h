@@ -2,6 +2,7 @@
 #define LLMCHAT_CLIENT_H
 #include <chatmessage.h>
 #include <chatmodel.h>
+#include <llmconnectionmodel.h>
 #include <modellistmodel.h>
 #include <toolmodel.h>
 #include <QDir>
@@ -37,8 +38,7 @@ public:
 
     // Configuration methods
     void setTimeout(int milliseconds);
-    void setServerUrl(const QString &url);
-    void setApiKey(const QString &key);
+    void setConnection(LLMConnectionModel::ConnectionData *connection);
 
     // Convenience method for single string message
 
@@ -51,10 +51,10 @@ public:
     inline ToolModel *toolModel() { return m_toolModel; }
     inline ChatModel *chatModel() { return m_chatModel; }
     inline ModelListModel *llmModels() { return m_llmModels; }
-    inline const ModelEntry &activeModel() const { return m_llmModel; }
+    inline const ModelListModel::ModelEntry &activeModel() const { return m_llmModel; }
 
 public slots:
-    void setActiveModel(const ModelEntry &model);
+    void setActiveModel(const ModelListModel::ModelEntry &model);
     void cancelRequest();
 
 signals:
@@ -75,13 +75,12 @@ private slots:
     void onSslErrors(QNetworkReply *reply, const QList<QSslError> &errors);
 
 private:
-    ModelEntry m_llmModel;
+    ModelListModel::ModelEntry m_llmModel;
     ToolModel *m_toolModel;
     ChatModel *m_chatModel;
     ModelListModel *m_llmModels;
     QNetworkAccessManager *m_networkManager;
-    QString m_serverUrl;
-    QString m_apiKey;
+    LLMConnectionModel::ConnectionData *m_connection;
     int m_timeout;
     bool m_isResponseStream;
 

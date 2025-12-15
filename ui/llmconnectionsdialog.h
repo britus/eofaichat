@@ -55,6 +55,7 @@ private:
     QTableView *m_tableView;
     QLineEdit *m_nameEdit;
     QComboBox *m_providerCombo;
+    QComboBox *m_authTypeCombo;
     QLineEdit *m_apiUrlEdit;
     QLineEdit *m_apiKeyEdit;
     QCheckBox *m_isEnabledCheck;

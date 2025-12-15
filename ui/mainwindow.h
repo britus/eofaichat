@@ -18,6 +18,8 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
+    static MainWindow *window();
+
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
@@ -26,6 +28,7 @@ public:
     inline QWidget *contentWidget() const { return m_contentWidget; }
     inline SyntaxColorModel *syntaxModel() const { return m_syntaxModel; }
     inline ToolModel *toolModel() const { return m_toolModel; }
+    inline SettingsManager *settings() const { return m_settingsManager; }
 
 private slots:
     void onChatSelected(QWidget *chatWidget);
@@ -40,7 +43,7 @@ private:
     QHBoxLayout *m_mainLayout;
     QWidget *m_contentWidget;
     QWidget *m_centralWidget;
-    SettingsManager *settingsManager;
+    SettingsManager *m_settingsManager;
     LLMConnectionModel *m_connectionModel;
     SyntaxColorModel *m_syntaxModel;
     ToolModel *m_toolModel;

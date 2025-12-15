@@ -1,6 +1,7 @@
 #include <chatlistitemdelegate.h>
 #include <chatpanelwidget.h>
 #include <leftpanelwidget.h>
+#include <llmconnectionselection.h>
 #include <mainwindow.h>
 #include <QApplication>
 #include <QInputDialog>
@@ -12,6 +13,8 @@
 
 LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     : QWidget(parent)
+    , m_chatModel(new ChatListModel(this))
+    , m_llmModel(new LLMConnectionModel(this))
 {
     setMinimumWidth(150);
 
@@ -20,108 +23,123 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
     layout->setSpacing(12);
 
     // ---------------- New Chat ----------------------------------
-    newChatButton = new QPushButton(tr("New LLM Chat"), this);
-    newChatButton->setMinimumHeight(48);
-    connect(newChatButton, &QPushButton::clicked, this, &LeftPanelWidget::onNewChat);
-    layout->addWidget(newChatButton);
+    m_newChatButton = new QPushButton(tr("New LLM Chat"), this);
+    m_newChatButton->setMinimumHeight(48);
+    connect(m_newChatButton, &QPushButton::clicked, this, &LeftPanelWidget::onNewChat);
+    layout->addWidget(m_newChatButton);
 
     // ---------------- Chat List ----------------------------------
-    chatModel = new ChatListModel(this);
-    connect(chatModel, &ChatListModel::chatWidgetRemoved, this, [this](QWidget *w) { //
+
+    connect(m_chatModel, &ChatListModel::chatWidgetRemoved, this, [this](QWidget *w) { //
         emit chatRemoved(w);
     });
-    connect(chatModel, &ChatListModel::chatWidgetAdded, this, [this](QWidget *w) { //
-        if (chatModel->rowCount() > 0) {
+    connect(m_chatModel, &ChatListModel::chatWidgetAdded, this, [this](QWidget *w) { //
+        if (m_chatModel->rowCount() > 0) {
             // Select the new chat
-            QModelIndex newIndex = chatModel->index(chatModel->rowCount() - 1, 0);
-            chatList->setCurrentIndex(newIndex);
+            QModelIndex newIndex = m_chatModel->index(m_chatModel->rowCount() - 1, 0);
+            m_chatList->setCurrentIndex(newIndex);
             // Emit signal to update main window
             emit chatSelected(w);
         }
     });
 
-    chatList = new QListView(this);
-    chatList->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_chatList = new QListView(this);
+    m_chatList->setSelectionMode(QAbstractItemView::SingleSelection);
     ChatListItemDelegate *delegate = new ChatListItemDelegate(this);
-    chatList->setItemDelegate(delegate);
-    chatList->setModel(chatModel);
+    m_chatList->setItemDelegate(delegate);
+    m_chatList->setModel(m_chatModel);
 
-    connect(chatList, &QListView::clicked, this, &LeftPanelWidget::onChatItemClicked);
+    connect(m_chatList, &QListView::clicked, this, &LeftPanelWidget::onChatItemClicked);
     connect(delegate, &ChatListItemDelegate::deleteRequested, this, &LeftPanelWidget::onDeleteChatRequested);
 
     // Enable context menu
-    chatList->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(chatList, &QWidget::customContextMenuRequested, this, &LeftPanelWidget::onContextMenu);
+    m_chatList->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_chatList, &QWidget::customContextMenuRequested, this, &LeftPanelWidget::onContextMenu);
 
-    layout->addWidget(chatList, 1);
+    layout->addWidget(m_chatList, 1);
 
     // ---------------- Trash confirmation -------------------------
-    trashConfirmWidget = new QWidget(this);
-    trashConfirmWidget->setVisible(false);
+    m_trashConfirmWidget = new QWidget(this);
+    m_trashConfirmWidget->setVisible(false);
 
-    auto trashLayout = new QHBoxLayout(trashConfirmWidget);
+    auto trashLayout = new QHBoxLayout(m_trashConfirmWidget);
     trashLayout->setContentsMargins(0, 0, 0, 0);
 
-    trashYes = new QPushButton(QString::fromUtf8("✓"), trashConfirmWidget);
-    trashYes->setObjectName("trashYes");
+    m_trashYes = new QPushButton(QString::fromUtf8("✓"), m_trashConfirmWidget);
+    m_trashYes->setObjectName("trashYes");
 
-    trashNo = new QPushButton(QString::fromUtf8("✕"), trashConfirmWidget);
-    trashNo->setObjectName("trashNo");
+    m_trashNo = new QPushButton(QString::fromUtf8("✕"), m_trashConfirmWidget);
+    m_trashNo->setObjectName("trashNo");
 
-    trashLayout->addWidget(trashYes);
-    trashLayout->addWidget(trashNo);
+    trashLayout->addWidget(m_trashYes);
+    trashLayout->addWidget(m_trashNo);
 
-    layout->addWidget(trashConfirmWidget);
+    layout->addWidget(m_trashConfirmWidget);
 
-    connect(trashYes, &QPushButton::clicked, this, &LeftPanelWidget::onConfirmDelete);
-    connect(trashNo, &QPushButton::clicked, this, &LeftPanelWidget::onCancelDelete);
+    connect(m_trashYes, &QPushButton::clicked, this, &LeftPanelWidget::onConfirmDelete);
+    connect(m_trashNo, &QPushButton::clicked, this, &LeftPanelWidget::onCancelDelete);
 
-    autoHideTimer = new QTimer(this);
-    autoHideTimer->setSingleShot(true);
-    autoHideTimer->setInterval(3000);
-    connect(autoHideTimer, &QTimer::timeout, this, &LeftPanelWidget::onCancelDelete);
+    m_autoHideTimer = new QTimer(this);
+    m_autoHideTimer->setSingleShot(true);
+    m_autoHideTimer->setInterval(3000);
+    connect(m_autoHideTimer, &QTimer::timeout, this, &LeftPanelWidget::onCancelDelete);
 
     // ---------------- Updates ------------------------------------
-    updatesButton = new QPushButton(tr("Updates"), this);
-    updatesButton->setMinimumHeight(48);
-    connect(updatesButton, &QPushButton::clicked, this, &LeftPanelWidget::onUpdates);
-    layout->addWidget(updatesButton);
+    m_updatesButton = new QPushButton(tr("Updates"), this);
+    m_updatesButton->setMinimumHeight(48);
+    connect(m_updatesButton, &QPushButton::clicked, this, &LeftPanelWidget::onUpdates);
+    layout->addWidget(m_updatesButton);
 
     // ---------------- Downloads ----------------------------------
-    downloadsButton = new QPushButton(tr("Downloads"), this);
-    downloadsButton->setMinimumHeight(48);
-    connect(downloadsButton, &QPushButton::clicked, this, &LeftPanelWidget::downloadClicked);
-    layout->addWidget(downloadsButton);
+    m_downloadsButton = new QPushButton(tr("Downloads"), this);
+    m_downloadsButton->setMinimumHeight(48);
+    connect(m_downloadsButton, &QPushButton::clicked, this, &LeftPanelWidget::downloadClicked);
+    layout->addWidget(m_downloadsButton);
 
     // ---------------- About --------------------------------------
-    aboutButton = new QPushButton(tr("About"), this);
-    aboutButton->setMinimumHeight(48);
-    connect(aboutButton, &QPushButton::clicked, this, &LeftPanelWidget::aboutClicked);
-    layout->addWidget(aboutButton);
-}
-
-static inline MainWindow *mainWindow()
-{
-    // Finding the first QMainWindow in QApplication
-    const QWidgetList allWidgets = QApplication::topLevelWidgets();
-    for (QObject *obj : allWidgets) {
-        if (MainWindow *mw = qobject_cast<MainWindow *>(obj)) {
-            return mw;
-        }
-    }
-    return nullptr;
+    m_aboutButton = new QPushButton(tr("About"), this);
+    m_aboutButton->setMinimumHeight(48);
+    connect(m_aboutButton, &QPushButton::clicked, this, &LeftPanelWidget::aboutClicked);
+    layout->addWidget(m_aboutButton);
 }
 
 void LeftPanelWidget::createChatWidget(const QString &name)
 {
-    if (MainWindow *mw = mainWindow()) {
+    // find default connection
+    if (!m_connection.isValid()) {
+        foreach (auto connection, m_llmModel->getAllConnections()) {
+            if (connection.isDefault()) {
+                m_connection = connection;
+                break;
+            }
+        }
+    }
+
+    if (!m_connection.isValid()) {
+        LLMConnectionSelection dlg(m_llmModel, this);
+        if (dlg.exec() != QDialog::DialogCode::Accepted) {
+            return;
+        }
+        QString name = dlg.selectedConnectionName();
+        foreach (auto connection, m_llmModel->getAllConnections()) {
+            if (connection.name() == name) {
+                m_connection = connection;
+                break;
+            }
+        }
+        if (!m_connection.isValid()) {
+            return;
+        }
+    }
+
+    if (MainWindow *mw = MainWindow::window()) {
         ChatPanelWidget *newWidget = new ChatPanelWidget( //
+            &m_connection,
             mw->syntaxModel(),
             mw->toolModel(),
             mw->contentWidget());
-
         // Create initial chat
-        chatModel->addChat(name, newWidget);
+        m_chatModel->addChat(name, newWidget);
     }
 }
 
@@ -131,7 +149,7 @@ void LeftPanelWidget::onChatItemClicked(const QModelIndex &index)
         return;
 
     // Get the chat widget from the model
-    ChatListModel::ChatData *chatData = chatModel->getChatData(index.row());
+    ChatListModel::ChatData *chatData = m_chatModel->getChatData(index.row());
     if (chatData) {
         emit chatSelected(chatData->widget);
     }
@@ -139,7 +157,7 @@ void LeftPanelWidget::onChatItemClicked(const QModelIndex &index)
 
 void LeftPanelWidget::onEditChat()
 {
-    auto currentIndex = chatList->currentIndex();
+    auto currentIndex = m_chatList->currentIndex();
     if (!currentIndex.isValid())
         return;
 
@@ -154,42 +172,42 @@ void LeftPanelWidget::onEditChat()
         currentName,
         &ok);
     if (ok) {
-        chatModel->setData(currentIndex, newName, Qt::EditRole);
+        m_chatModel->setData(currentIndex, newName, Qt::EditRole);
     }
 }
 
 void LeftPanelWidget::onDeleteChat()
 {
-    auto currentIndex = chatList->currentIndex();
+    auto currentIndex = m_chatList->currentIndex();
     if (!currentIndex.isValid())
         return;
 
-    pendingDeleteIndex = currentIndex.row();
-    trashConfirmWidget->setVisible(true);
-    autoHideTimer->start();
+    m_pendingDeleteIndex = currentIndex.row();
+    m_trashConfirmWidget->setVisible(true);
+    m_autoHideTimer->start();
 }
 
 void LeftPanelWidget::onDeleteChatRequested(int row)
 {
-    pendingDeleteIndex = row;
-    trashConfirmWidget->setVisible(true);
-    autoHideTimer->start();
+    m_pendingDeleteIndex = row;
+    m_trashConfirmWidget->setVisible(true);
+    m_autoHideTimer->start();
 }
 
 void LeftPanelWidget::onConfirmDelete()
 {
-    if (pendingDeleteIndex >= 0 && pendingDeleteIndex < chatModel->chatCount()) {
-        chatModel->removeChat(pendingDeleteIndex);
+    if (m_pendingDeleteIndex >= 0 && m_pendingDeleteIndex < m_chatModel->chatCount()) {
+        m_chatModel->removeChat(m_pendingDeleteIndex);
     }
 
-    pendingDeleteIndex = -1;
-    trashConfirmWidget->setVisible(false);
+    m_pendingDeleteIndex = -1;
+    m_trashConfirmWidget->setVisible(false);
 }
 
 void LeftPanelWidget::onCancelDelete()
 {
-    pendingDeleteIndex = -1;
-    trashConfirmWidget->setVisible(false);
+    m_pendingDeleteIndex = -1;
+    m_trashConfirmWidget->setVisible(false);
 }
 
 void LeftPanelWidget::onUpdates()
@@ -206,7 +224,7 @@ void LeftPanelWidget::onChatNameChanged(const QString & /*newName*/)
 void LeftPanelWidget::onNewChat()
 {
     QString newName = tr("New LLM chat");
-    int count = chatModel->chatCount();
+    int count = m_chatModel->chatCount();
     if (count > 0) {
         newName = QString(tr("New LLM chat %1")).arg(count + 1);
     }
@@ -224,12 +242,12 @@ void LeftPanelWidget::onContextMenu(const QPoint &point)
     QAction *deleteAction = contextMenu.addAction(tr("Delete Chat"));
 
     // Enable/disable actions based on selection
-    auto currentIndex = chatList->currentIndex();
+    auto currentIndex = m_chatList->currentIndex();
     editAction->setEnabled(currentIndex.isValid());
     deleteAction->setEnabled(currentIndex.isValid());
 
     // Show the context menu
-    QAction *selectedAction = contextMenu.exec(chatList->mapToGlobal(point));
+    QAction *selectedAction = contextMenu.exec(m_chatList->mapToGlobal(point));
 
     if (selectedAction == addAction) {
         onNewChat();

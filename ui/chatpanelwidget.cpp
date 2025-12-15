@@ -4,11 +4,13 @@
 #include <filelistmodel.h>
 #include <filelistwidget.h>
 #include <filenamelabel.h>
+#include <llmconnectionmodel.h>
 #include <mainwindow.h>
 #include <progresspopup.h>
 #include <toolservice.h>
 #include <toolswidget.h>
 #include <QApplication>
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QDate>
 #include <QDateTime>
@@ -30,6 +32,7 @@
 #include <QMimeData>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSplitter>
 #include <QStandardPaths>
 #include <QStyle>
 #include <QTextEdit>
@@ -38,14 +41,14 @@
 #include <QUuid>
 #include <QVBoxLayout>
 
-ChatPanelWidget::ChatPanelWidget(SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent)
+ChatPanelWidget::ChatPanelWidget(LLMConnectionModel::ConnectionData *connection, SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent)
     : QWidget(parent)
+    , m_llmConnection(connection)
     , m_llmclient(new LLMChatClient(tModel, new ChatModel(this), this))
     , m_syntaxModel(scModel)
     , m_toolModel(tModel)
     , m_fileListModel(new FileListModel(this))
     , m_isConversating(false)
-
 {
     // fixed layout height
     setMinimumHeight(640);
@@ -58,28 +61,28 @@ ChatPanelWidget::ChatPanelWidget(SyntaxColorModel *scModel, ToolModel *tModel, Q
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(12);
 
-    // Scrollable chat area
-    createChatArea(mainLayout);
+    // Scrollable chat area  with chat text view
+    QWidget *messageContainer = createChatArea(this);
+    mainLayout->addWidget(messageContainer, Qt::AlignTop);
 
-    // File list widget (initially hidden)
-    createFileListWidget(mainLayout);
+    // Input area with hidden file list and text input field
+    QWidget *inputContainer = createInputArea(this);
+    mainLayout->addWidget(inputContainer);
 
-    // Multiline input field
-    createInputWidget(mainLayout);
+    QSplitter *splitter = new QSplitter(Qt::Vertical, this);
+    splitter->setHandleWidth(10);
+    splitter->insertWidget(0, messageContainer);
+    splitter->insertWidget(1, inputContainer);
+    splitter->setSizes(QList<int>() << 800 << 100);
+    mainLayout->addWidget(splitter);
 
     // Language Model Selection Widget
-    createLLMSelector(mainLayout);
+    QWidget *modelWidget = createLLMSelector(this);
+    mainLayout->addWidget(modelWidget);
 
     // Buttons row
-    QHBoxLayout *buttonLayout = new QHBoxLayout();
-    // Align layout to the right
-    buttonLayout->setAlignment(Qt::AlignRight);
-    // First add spacer to push buttons to the right
-    buttonLayout->addStretch();
-    createAttachButton(buttonLayout);
-    createToolsButton(buttonLayout);
-    createSendButton(buttonLayout);
-    mainLayout->addLayout(buttonLayout);
+    QWidget *buttonBox = createButtonBox(this);
+    mainLayout->addWidget(buttonBox);
 
     // assign layout to widget
     setLayout(mainLayout);
@@ -91,74 +94,118 @@ ChatPanelWidget::ChatPanelWidget(SyntaxColorModel *scModel, ToolModel *tModel, Q
     connectLLMClient();
 
     // Connect LLM server
-    QTimer::singleShot(10, this, [this]() {
-        m_llmclient->setApiKey("lm-studio");
-        m_llmclient->setServerUrl("http://localhost:1234");
-        m_llmclient->listModels();
-    });
+    if (m_llmConnection && m_llmConnection->isValid()) {
+        QTimer::singleShot(10, this, [this]() {
+            m_llmclient->setConnection(m_llmConnection);
+            m_llmclient->listModels();
+        });
+    }
 }
 
-inline void ChatPanelWidget::createChatArea(QVBoxLayout *mainLayout)
+// ----------------- chat text area -----------------
+
+inline QWidget *ChatPanelWidget::createChatArea(QWidget *parent)
 {
-    m_scrollArea = new QScrollArea(this);
-    m_scrollArea->setWidgetResizable(true);
-    m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    QScrollArea *scrollArea;
+    scrollArea = new QScrollArea(parent);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    m_messagesContainer = new QWidget(this);
-    m_messagesContainer->setObjectName("messagesContainer");
-    m_messagesLayout = new QVBoxLayout(m_messagesContainer);
-    m_messagesLayout->setAlignment(Qt::AlignTop);
+    QWidget *container;
+    container = new QWidget(scrollArea);
+    container->setObjectName("messagesContainer");
+    container->setSizePolicy( //
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Expanding);
 
-    m_messagesContainer->setLayout(m_messagesLayout);
-    m_scrollArea->setWidget(m_messagesContainer);
-    mainLayout->addWidget(m_scrollArea, 1);
+    QVBoxLayout *layout = new QVBoxLayout(container);
+    layout->setAlignment(Qt::AlignTop);
 
-    // ----------------- chat text area -----------------
-    m_chatWidget = new ChatTextWidget(m_messagesContainer, m_syntaxModel);
-    m_messagesLayout->addWidget(m_chatWidget);
+    container->setLayout(layout);
+    scrollArea->setWidget(container);
 
-    connect(m_chatWidget, &ChatTextWidget::documentUpdated, this, [this]() { //
+    m_chatView = new ChatTextWidget(container, m_syntaxModel);
+    m_chatView->setSizePolicy( //
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Expanding);
+    layout->addWidget(m_chatView);
+
+    connect(m_chatView, &ChatTextWidget::documentUpdated, this, [this]() { //
         onHideProgressPopup();
     });
+
+    return scrollArea;
 }
 
-inline void ChatPanelWidget::createFileListWidget(QVBoxLayout *mainLayout)
+inline QWidget *ChatPanelWidget::createInputArea(QWidget *parent)
 {
-    m_fileListWidget = new FileListWidget(m_fileListModel, this);
+    QWidget *inputContainer = new QWidget(parent);
+    inputContainer->setSizePolicy( //
+        QSizePolicy::Expanding,
+        QSizePolicy::MinimumExpanding);
+
+    QVBoxLayout *inputLayout = new QVBoxLayout(inputContainer);
+    inputLayout->setContentsMargins(0, 0, 0, 0);
+    inputLayout->setSpacing(12);
+
+    // File list widget (initially hidden)
+    QWidget *fileListWidget = createFileListWidget(inputContainer);
+    inputLayout->addWidget(fileListWidget);
+
+    // Multiline input field
+    QWidget *inputWidget = createInputWidget(inputContainer);
+    inputLayout->addWidget(inputWidget);
+    inputContainer->setLayout(inputLayout);
+
+    return inputContainer;
+}
+
+inline QWidget *ChatPanelWidget::createFileListWidget(QWidget *parent)
+{
+    FileListWidget *m_fileListWidget;
+    m_fileListWidget = new FileListWidget(m_fileListModel, parent);
     m_fileListWidget->setObjectName("fileListWidget");
+    m_fileListWidget->setSizePolicy( //
+        QSizePolicy::Expanding,
+        QSizePolicy::Minimum);
+    //m_fileListWidget->setMaximumHeight(100);
     m_fileListWidget->setModel(m_fileListModel);
-    m_fileListWidget->setSizePolicy(QSizePolicy::Policy::MinimumExpanding, QSizePolicy::Policy::Minimum);
-    m_fileListWidget->setMaximumHeight(100);
     m_fileListWidget->setVisible(false);
-    mainLayout->addWidget(m_fileListWidget);
+
+    return m_fileListWidget;
 }
 
-inline void ChatPanelWidget::createInputWidget(QVBoxLayout *mainLayout)
+inline QWidget *ChatPanelWidget::createInputWidget(QWidget *parent)
 {
-    m_messageInput = new QTextEdit(this);
+    m_messageInput = new QTextEdit(parent);
 #ifdef Q_OS_MACOS
     m_messageInput->setPlaceholderText(tr("Type your message... | Option+Enter (⌥ + ⏎) submit."));
 #else
     messageInput->setPlaceholderText(tr("Type your message... | Alt+Enter submit."));
 #endif
-    m_messageInput->setFixedHeight(100); // adjustable height
     m_messageInput->setAcceptRichText(false);
     m_messageInput->setAutoFormatting(QTextEdit::AutoAll);
     // Enable drag and drop for message input
     m_messageInput->setAcceptDrops(true);
-    mainLayout->addWidget(m_messageInput);
+    m_messageInput->setSizePolicy( //
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Expanding);
+
+    return m_messageInput;
 }
 
 // Language model selection widget
-inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
+inline QWidget *ChatPanelWidget::createLLMSelector(QWidget *parent)
 {
     QWidget *modelWidget;
     QComboBox *comboBox;
     QLabel *modelLabel;
 
-    modelWidget = new QWidget(this);
-    modelWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+    modelWidget = new QWidget(parent);
     modelWidget->setObjectName("modelWidget");
+    modelWidget->setSizePolicy( //
+        QSizePolicy::Expanding,
+        QSizePolicy::Minimum);
 
     QHBoxLayout *modelLayout = new QHBoxLayout(modelWidget);
     modelLayout->setContentsMargins(12, 12, 12, 12);
@@ -172,23 +219,21 @@ inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
         if (index < 0 || index >= comboBox->count())
             return;
         QVariant data = comboBox->itemData(index);
-        if (data.canConvert<ModelEntry>()) {
-            m_llmclient->setActiveModel(data.value<ModelEntry>());
+        if (data.canConvert<ModelListModel::ModelEntry>()) {
+            m_llmclient->setActiveModel(data.value<ModelListModel::ModelEntry>());
         }
     });
 
     modelLayout->addWidget(modelLabel);
     modelLayout->addWidget(comboBox);
 
-    mainLayout->addWidget(modelWidget);
-
     // Connect LLM list model
     connect(m_llmclient->llmModels(), &ModelListModel::modelsLoaded, this, [this, comboBox]() {
         QTimer::singleShot(10, this, [this, comboBox]() {
-            const QList<ModelEntry> &models = m_llmclient->llmModels()->modelList();
+            const QList<ModelListModel::ModelEntry> &models = m_llmclient->llmModels()->modelList();
             // Fill Model selection QComboBox
             comboBox->clear();
-            for (const ModelEntry &entry : models) {
+            for (const ModelListModel::ModelEntry &entry : models) {
                 comboBox->addItem(entry.id, QVariant::fromValue(entry));
             }
             // Select first model by default
@@ -196,18 +241,41 @@ inline void ChatPanelWidget::createLLMSelector(QVBoxLayout *mainLayout)
                 comboBox->setCurrentIndex(0);
                 // Save selected model entry
                 QVariant data = comboBox->itemData(0);
-                if (data.canConvert<ModelEntry>()) {
-                    m_llmclient->setActiveModel(data.value<ModelEntry>());
+                if (data.canConvert<ModelListModel::ModelEntry>()) {
+                    m_llmclient->setActiveModel(data.value<ModelListModel::ModelEntry>());
                 }
             }
         });
     });
+
+    return modelWidget;
 }
 
-inline void ChatPanelWidget::createAttachButton(QHBoxLayout *buttonLayout)
+inline QWidget *ChatPanelWidget::createButtonBox(QWidget *parent)
 {
-    m_attachButton = new AttachButton(tr("Attach"), this);
-    buttonLayout->addWidget(m_attachButton);
+    QWidget *container = new QWidget(parent);
+    container->setSizePolicy( //
+        QSizePolicy::Expanding,
+        QSizePolicy::Minimum);
+
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    buttonLayout->setContentsMargins(0, 0, 0, 0);
+    buttonLayout->setSpacing(12);
+    // Align layout to the right
+    buttonLayout->setAlignment(Qt::AlignRight);
+    // First add spacer to push buttons to the right
+    buttonLayout->addStretch();
+    buttonLayout->addWidget(createAttachButton(container));
+    buttonLayout->addWidget(createToolsButton(container));
+    buttonLayout->addWidget(createSendButton(container));
+
+    container->setLayout(buttonLayout);
+    return container;
+}
+
+inline AttachButton *ChatPanelWidget::createAttachButton(QWidget *parent)
+{
+    m_attachButton = new AttachButton(tr("Attach"), parent);
 
     connect(m_attachButton, &AttachButton::clicked, this, [this]() {
         QString homePath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
@@ -239,32 +307,38 @@ inline void ChatPanelWidget::createAttachButton(QHBoxLayout *buttonLayout)
             }
         }
     });
+    return m_attachButton;
 }
 
-inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
+inline QPushButton *ChatPanelWidget::createToolsButton(QWidget *parent)
 {
-    QPushButton *toolsButton = new QPushButton(tr("Tools"), this);
+    QPushButton *toolsButton = new QPushButton(tr("Tools"), parent);
     toolsButton->setEnabled(m_toolModel->rowCount() > 0);
-    buttonLayout->addWidget(toolsButton);
 
     connect(toolsButton, &QPushButton::clicked, this, [this]() {
+        QMainWindow *toolsWindow = nullptr;
+        QVariant v = sender()->property("window");
+        if (!v.isNull() && v.isValid()) {
+            toolsWindow = v.value<QMainWindow *>();
+        }
         // Create a new window for the tools
-        if (m_toolsWindow == nullptr) {
-            m_toolsWindow = new QMainWindow(this->window());
-            m_toolsWindow->setWindowFlag(Qt::WindowType::Tool, true);
-            m_toolsWindow->setWindowTitle(qApp->applicationDisplayName() + " - " + tr("Tools"));
-            m_toolsWindow->setWindowIcon(QIcon(":/assets/eofaichat.png"));
+        if (toolsWindow == nullptr) {
+            toolsWindow = new QMainWindow(this->window());
+            toolsWindow->setWindowFlag(Qt::WindowType::Tool, true);
+            toolsWindow->setWindowTitle(qApp->applicationDisplayName() + " - " + tr("Tools"));
+            toolsWindow->setWindowIcon(QIcon(":/assets/eofaichat.png"));
             // Set window properties
-            m_toolsWindow->setFixedSize(380, 420);
-            m_toolsWindow->resize(m_toolsWindow->size());
+            toolsWindow->setFixedSize(380, 420);
+            toolsWindow->resize(toolsWindow->size());
             // Create the ToolsWidget
-            ToolsWidget *toolsWidget = new ToolsWidget(m_toolModel, m_toolsWindow);
+            ToolsWidget *toolsWidget = new ToolsWidget(m_toolModel, toolsWindow);
             // Set the ToolsWidget as the central widget of the window
-            m_toolsWindow->setCentralWidget(toolsWidget);
+            toolsWindow->setCentralWidget(toolsWidget);
+            sender()->setProperty("window", QVariant::fromValue(toolsWindow));
         }
         // Show the window
-        m_toolsWindow->setWindowState(Qt::WindowState::WindowActive);
-        m_toolsWindow->show();
+        toolsWindow->setWindowState(Qt::WindowState::WindowActive);
+        toolsWindow->show();
     });
 
     // Tools, Resource, Prompts configuration
@@ -281,12 +355,13 @@ inline void ChatPanelWidget::createToolsButton(QHBoxLayout *buttonLayout)
     });
 
     m_toolModel->loadToolsConfig();
+
+    return toolsButton;
 }
 
-inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
+inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
 {
-    m_sendButton = new QPushButton(tr("Send"), this);
-    buttonLayout->addWidget(m_sendButton);
+    m_sendButton = new QPushButton(tr("Send"), parent);
 
     connect(m_sendButton, &QPushButton::clicked, this, [this]() {
         // check in conversation
@@ -405,6 +480,8 @@ inline void ChatPanelWidget::createSendButton(QHBoxLayout *buttonLayout)
         //m_llmclient->sendChat(cm.model(), text, true);
         m_llmclient->sendChat(messages, true);
     });
+
+    return m_sendButton;
 }
 
 // ==================================================
@@ -413,13 +490,12 @@ void ChatPanelWidget::onUpdateChatText(int index, ChatMessage *message)
 {
     qDebug().noquote() << "[ChatPanelWidget] onUpdateChatText index:" << index //
                        << "id:" << message->id();
-
     // ensure UI thread
     QTimer::singleShot(10, this, [index, message, this]() {
         if (index < 0) {
-            m_chatWidget->appendMessage(message);
+            m_chatView->appendMessage(message);
         } else {
-            m_chatWidget->updateMessage(message);
+            m_chatView->updateMessage(message);
         }
     });
 }
