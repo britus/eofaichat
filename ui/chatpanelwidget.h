@@ -19,7 +19,7 @@ class ChatPanelWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit ChatPanelWidget(LLMConnectionModel::ConnectionData *connection, SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent = nullptr);
+    explicit ChatPanelWidget(LLMConnection *connection, SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent = nullptr);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -39,7 +39,7 @@ private:
     QPushButton *m_sendButton;
     AttachButton *m_attachButton;
     // LLM connection data
-    LLMConnectionModel::ConnectionData *m_llmConnection;
+    LLMConnection *m_llmConnection;
     // LLM connection client
     LLMChatClient *m_llmclient;
     // Syntax color model used by all ChatTextWidget instances

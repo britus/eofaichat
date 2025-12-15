@@ -29,7 +29,7 @@ LLMChatClient::~LLMChatClient()
     }
 }
 
-void LLMChatClient::setConnection(LLMConnectionModel::ConnectionData *connection)
+void LLMChatClient::setConnection(LLMConnection *connection)
 {
     m_connection = connection;
 }
@@ -152,7 +152,7 @@ void LLMChatClient::sendChat(const QString &model, const QList<QJsonObject> &mes
         QJsonObject requestBody = buildChatCompletionRequest(model, messages, parameters, stream);
         sendRequest(requestBody,
                     m_connection->endpointUri( //
-                        LLMConnectionModel::ConnectionData::EndpointCompletion));
+                        LLMConnection::EndpointCompletion));
     }
 }
 
@@ -162,7 +162,7 @@ void LLMChatClient::listModels()
         QJsonObject requestBody;
         sendRequest(requestBody,
                     m_connection->endpointUri( //
-                        LLMConnectionModel::ConnectionData::EndpointModels),
+                        LLMConnection::EndpointModels),
                     true);
     }
 }
@@ -197,11 +197,11 @@ inline void LLMChatClient::sendRequest(const QJsonObject &requestBody, const QSt
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     if (!m_connection->apiKey().isEmpty()) {
         switch (m_connection->authType()) {
-            case LLMConnectionModel::ConnectionData::AuthType::AuthToken: {
+            case LLMConnection::AuthType::AuthToken: {
                 request.setRawHeader("Authorization", "Token " + m_connection->apiKey().toUtf8());
                 break;
             }
-            case LLMConnectionModel::ConnectionData::AuthType::AuthBearer: {
+            case LLMConnection::AuthType::AuthBearer: {
                 request.setRawHeader("Authorization", "Bearer " + m_connection->apiKey().toUtf8());
                 break;
             }

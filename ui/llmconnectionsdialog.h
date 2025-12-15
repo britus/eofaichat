@@ -34,7 +34,6 @@ private slots:
     void onSelectionChanged(const QModelIndex &current, const QModelIndex &previous);
     void onModelDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles);
     void onConnectionAdded(const QModelIndex &parent, int first, int last);
-    void onDialogAccepted();
     void onDialogRejected();
 
 private:
@@ -43,8 +42,8 @@ private:
     inline void loadConnections();
     inline void updateButtons();
     inline void clearForm();
-    inline void populateForm(const LLMConnectionModel::ConnectionData &connection);
-    inline LLMConnectionModel::ConnectionData getFormData() const;
+    inline void populateForm(const LLMConnection &connection);
+    inline LLMConnection getFormData() const;
     inline bool validateForm() const;
     inline bool validateEditing() const;
     inline void showTestResult(const QString &result);
@@ -61,10 +60,9 @@ private:
     QCheckBox *m_isEnabledCheck;
     QCheckBox *m_isDefaultCheck;
     QPushButton *m_addButton;
-    QPushButton *m_updateButton;
+    QPushButton *m_applyButton;
     QPushButton *m_removeButton;
     QPushButton *m_testButton;
-    QPushButton *m_saveButton;
     QPushButton *m_cancelButton;
     QHBoxLayout *m_buttonLayout;
     QWidget *m_formWidget;

@@ -119,19 +119,17 @@ void LLMConnectionsDialog::setupUI()
     buttonLayout->setContentsMargins(0, 0, 0, 0);
 
     m_addButton = new QPushButton(tr("Add"), this);
-    m_updateButton = new QPushButton(tr("Update"), this);
     m_removeButton = new QPushButton(tr("Remove"), this);
+    m_applyButton = new QPushButton(tr("Apply"), this);
     m_testButton = new QPushButton(tr("Test"), this);
-    m_saveButton = new QPushButton(tr("Save"), this);
-    m_cancelButton = new QPushButton(tr("Cancel"), this);
+    m_cancelButton = new QPushButton(tr("Close"), this);
 
     // Add buttons to container with spacing
     buttonLayout->addWidget(m_addButton);
-    buttonLayout->addWidget(m_updateButton);
     buttonLayout->addWidget(m_removeButton);
-    buttonLayout->addWidget(m_testButton);
     buttonLayout->addStretch();
-    buttonLayout->addWidget(m_saveButton);
+    buttonLayout->addWidget(m_applyButton);
+    buttonLayout->addWidget(m_testButton);
     buttonLayout->addWidget(m_cancelButton);
 
     // Status label
@@ -158,20 +156,18 @@ void LLMConnectionsDialog::setupConnections()
     connect(m_model, &QAbstractItemModel::rowsInserted, this, &LLMConnectionsDialog::onConnectionAdded);
 
     connect(m_nameEdit, &QLineEdit::editingFinished, this, [this]() { //
-        m_updateButton->setEnabled(validateEditing());
-        m_testButton->setEnabled(m_updateButton->isEnabled());
+        m_applyButton->setEnabled(validateEditing());
+        m_testButton->setEnabled(m_applyButton->isEnabled());
     });
     connect(m_apiUrlEdit, &QLineEdit::editingFinished, this, [this]() { //
-        m_updateButton->setEnabled(validateEditing());
-        m_testButton->setEnabled(m_updateButton->isEnabled());
+        m_applyButton->setEnabled(validateEditing());
+        m_testButton->setEnabled(m_applyButton->isEnabled());
     });
 
     connect(m_addButton, &QPushButton::clicked, this, &LLMConnectionsDialog::onAddClicked);
-    connect(m_updateButton, &QPushButton::clicked, this, &LLMConnectionsDialog::onEditClicked);
+    connect(m_applyButton, &QPushButton::clicked, this, &LLMConnectionsDialog::onEditClicked);
     connect(m_removeButton, &QPushButton::clicked, this, &LLMConnectionsDialog::onRemoveClicked);
     connect(m_testButton, &QPushButton::clicked, this, &LLMConnectionsDialog::onTestClicked);
-
-    connect(m_saveButton, &QPushButton::clicked, this, &LLMConnectionsDialog::onDialogAccepted);
     connect(m_cancelButton, &QPushButton::clicked, this, &LLMConnectionsDialog::onDialogRejected);
 }
 
@@ -186,7 +182,7 @@ void LLMConnectionsDialog::updateButtons()
 {
     bool hasSelection = m_tableView->currentIndex().isValid() && m_model->rowCount() > 0;
     //bool hasSelection = m_tableView->selectionModel()->hasSelection();
-    m_updateButton->setEnabled(hasSelection);
+    m_applyButton->setEnabled(hasSelection);
     m_removeButton->setEnabled(hasSelection);
     m_testButton->setEnabled(hasSelection);
     m_formWidget->setEnabled(hasSelection || m_isAdding);
@@ -202,12 +198,12 @@ void LLMConnectionsDialog::clearForm()
     m_providerCombo->setCurrentIndex(m_providerCombo->count() - 1); // set custom
     m_providerCombo->setCurrentIndex(0);
     // Disable editing buttons when form is cleared
-    m_updateButton->setEnabled(false);
+    m_applyButton->setEnabled(false);
     m_removeButton->setEnabled(false);
     m_testButton->setEnabled(false);
 }
 
-void LLMConnectionsDialog::populateForm(const LLMConnectionModel::ConnectionData &connection)
+void LLMConnectionsDialog::populateForm(const LLMConnection &connection)
 {
     m_nameEdit->setText(connection.name());
     // Find and set m_provider
@@ -218,11 +214,11 @@ void LLMConnectionsDialog::populateForm(const LLMConnectionModel::ConnectionData
         m_providerCombo->setCurrentText(connection.provider());
     }
     switch (connection.authType()) {
-        case LLMConnectionModel::ConnectionData::AuthType::AuthToken: {
+        case LLMConnection::AuthType::AuthToken: {
             m_authTypeCombo->setCurrentIndex(0);
             break;
         }
-        case LLMConnectionModel::ConnectionData::AuthType::AuthBearer: {
+        case LLMConnection::AuthType::AuthBearer: {
             m_authTypeCombo->setCurrentIndex(1);
             break;
         }
@@ -233,13 +229,17 @@ void LLMConnectionsDialog::populateForm(const LLMConnectionModel::ConnectionData
     m_isDefaultCheck->setChecked(connection.isDefault());
 }
 
-inline LLMConnectionModel::ConnectionData LLMConnectionsDialog::getFormData() const
+inline LLMConnection LLMConnectionsDialog::getFormData() const
 {
-    LLMConnectionModel::ConnectionData connection;
+    LLMConnection connection;
     connection.setName(m_nameEdit->text().trimmed());
     connection.setProvider(m_providerCombo->currentText());
     connection.setApiUrl(m_apiUrlEdit->text().trimmed());
     connection.setApiKey(m_apiKeyEdit->text());
+    if (m_authTypeCombo->currentIndex() >= LLMConnection::AuthType::AuthToken //
+        && m_authTypeCombo->currentIndex() <= LLMConnection::AuthType::AuthBearer) {
+        connection.setAuthType((LLMConnection::AuthType) m_authTypeCombo->currentIndex());
+    }
     connection.setEnabled(m_isEnabledCheck->isChecked());
     connection.setDefault(m_isDefaultCheck->isChecked());
     return connection;
@@ -335,7 +335,7 @@ void LLMConnectionsDialog::onEditClicked()
     }
 
     if (m_isAdding) {
-        LLMConnectionModel::ConnectionData connection = getFormData();
+        LLMConnection connection = getFormData();
         m_model->addConnection(connection);
         showTestResult(tr("Connection added successfully."));
     }
@@ -343,6 +343,7 @@ void LLMConnectionsDialog::onEditClicked()
     if (!m_tableView->selectionModel()->hasSelection()) {
         return;
     }
+
     QModelIndex currentIndex = m_tableView->selectionModel()->currentIndex();
     if (!currentIndex.isValid()) {
         return;
@@ -351,8 +352,10 @@ void LLMConnectionsDialog::onEditClicked()
     // Get the connection name from the selected row
     QModelIndex index = m_model->index(currentIndex.row(), 0);
     QString currentName = m_model->data(index, Qt::DisplayRole).toString();
-    LLMConnectionModel::ConnectionData connection = getFormData();
+
+    LLMConnection connection = getFormData();
     m_model->updateConnection(currentName, connection);
+
     showTestResult(tr("Connection updated successfully."));
 }
 
@@ -367,10 +370,17 @@ void LLMConnectionsDialog::onRemoveClicked()
         return;
     }
 
-    QString connectionName = m_model->data(m_model->index(currentIndex.row(), 0), Qt::DisplayRole).toString();
+    QString connectionName = m_model
+                                 ->data( //
+                                     m_model->index(currentIndex.row(), 0),
+                                     Qt::DisplayRole)
+                                 .toString();
 
-    int reply = QMessageBox::question(this, tr("Confirm Delete"), tr("Are you sure you want to delete connection '%1'?").arg(connectionName), QMessageBox::Yes | QMessageBox::No);
-
+    int reply = QMessageBox::question( //
+        this,
+        tr("Confirm Delete"),
+        tr("Are you sure you want to delete connection '%1'?").arg(connectionName),
+        QMessageBox::Yes | QMessageBox::No);
     if (reply == QMessageBox::Yes) {
         m_model->removeConnection(connectionName);
         clearForm();
@@ -391,7 +401,7 @@ void LLMConnectionsDialog::onTestClicked()
     }
 
     QString connectionName = m_model->data(m_model->index(currentIndex.row(), 0), Qt::DisplayRole).toString();
-    LLMConnectionModel::ConnectionData connection = m_model->getConnection(connectionName);
+    LLMConnection connection = m_model->getConnection(connectionName);
 
     if (!connection.isEnabled()) {
         showTestResult(tr("Connection is disabled. Cannot test."));
@@ -401,12 +411,18 @@ void LLMConnectionsDialog::onTestClicked()
     // Show testing status
     showTestResult(tr("Testing connection..."));
 
-    // Create a temporary LLMChatClient to test the connection
-    // This is a simplified approach - in a real implementation, you'd want to use the actual client
-    // with proper error handling and async operations
-
     // For now, we'll simulate a test by checking if the URL is valid
-    QUrl url(connection.apiUrl() + "/models");
+    QString endpoint = connection.endpointUri(LLMConnection::EndpointModels);
+    QString apiUrl = connection.apiUrl();
+    if (!apiUrl.endsWith('/') && !endpoint.startsWith("/")) {
+        apiUrl + "/" + endpoint;
+    } else if (apiUrl.endsWith("/") && endpoint.startsWith("/")) {
+        apiUrl = apiUrl + endpoint.mid(1);
+    } else {
+        apiUrl = apiUrl + endpoint;
+    }
+
+    QUrl url(apiUrl);
     if (!url.isValid()) {
         showTestResult(tr("Error: Invalid URL format."));
         return;
@@ -416,8 +432,16 @@ void LLMConnectionsDialog::onTestClicked()
     request.setTransferTimeout(2000);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     if (!connection.apiKey().isEmpty()) {
-        request.setRawHeader("Authorization", "Bearer " + connection.apiKey().toUtf8());
-        //request.setRawHeader("Authorization", "Token " + m_apiKey.toUtf8());
+        switch (connection.authType()) {
+            case LLMConnection::AuthType::AuthToken: {
+                request.setRawHeader("Authorization", "Token " + connection.apiKey().toUtf8());
+                break;
+            }
+            case LLMConnection::AuthType::AuthBearer: {
+                request.setRawHeader("Authorization", "Bearer " + connection.apiKey().toUtf8());
+                break;
+            }
+        }
     }
 
     m_networkManager->get(request);
@@ -429,7 +453,7 @@ void LLMConnectionsDialog::onSelectionChanged(const QModelIndex &current, const 
     if (current.isValid()) {
         // Populate form with selected connection data
         QString connectionName = m_model->data(m_model->index(current.row(), 0), Qt::DisplayRole).toString();
-        LLMConnectionModel::ConnectionData connection = m_model->getConnection(connectionName);
+        LLMConnection connection = m_model->getConnection(connectionName);
         populateForm(connection);
         m_isAdding = false;
     } else {
@@ -456,11 +480,6 @@ void LLMConnectionsDialog::onConnectionAdded(const QModelIndex &parent, int firs
     // Refresh the view when data changes
     loadConnections();
     m_isAdding = false;
-}
-
-void LLMConnectionsDialog::onDialogAccepted()
-{
-    accept();
 }
 
 void LLMConnectionsDialog::onDialogRejected()

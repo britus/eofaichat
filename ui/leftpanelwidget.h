@@ -61,5 +61,5 @@ private:
     QTimer *m_autoHideTimer;
     int m_pendingDeleteIndex = -1;
     QMenu *m_contextMenu;
-    LLMConnectionModel::ConnectionData m_connection;
+    LLMConnection m_connection;
 };

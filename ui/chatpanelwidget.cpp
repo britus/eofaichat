@@ -41,7 +41,7 @@
 #include <QUuid>
 #include <QVBoxLayout>
 
-ChatPanelWidget::ChatPanelWidget(LLMConnectionModel::ConnectionData *connection, SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent)
+ChatPanelWidget::ChatPanelWidget(LLMConnection *connection, SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent)
     : QWidget(parent)
     , m_llmConnection(connection)
     , m_llmclient(new LLMChatClient(tModel, new ChatModel(this), this))

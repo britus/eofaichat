@@ -38,7 +38,7 @@ public:
 
     // Configuration methods
     void setTimeout(int milliseconds);
-    void setConnection(LLMConnectionModel::ConnectionData *connection);
+    void setConnection(LLMConnection *connection);
 
     // Convenience method for single string message
 
@@ -80,7 +80,7 @@ private:
     ChatModel *m_chatModel;
     ModelListModel *m_llmModels;
     QNetworkAccessManager *m_networkManager;
-    LLMConnectionModel::ConnectionData *m_connection;
+    LLMConnection *m_connection;
     int m_timeout;
     bool m_isResponseStream;
 
