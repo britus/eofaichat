@@ -109,7 +109,7 @@ void LLMConnectionsDialog::setupUI()
     optionLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding), 2, 0);
 
     // Move optionBox to top/right corner and expand vertically over all 4 rows
-    formLayout->addWidget(optionBox, 0, 2, 4, 1); // (row, column, rowSpan, columnSpan)
+    formLayout->addWidget(optionBox, 0, 2, 5, 1); // (row, column, rowSpan, columnSpan)
 
     // Create a container for the action buttons
     QWidget *buttonContainer = new QWidget(this);
