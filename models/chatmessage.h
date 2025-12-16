@@ -6,6 +6,119 @@
 #include <QJsonValue>
 #include <QObject>
 
+class ToolCallEntry
+{
+public:
+    enum ToolType {
+        TypeNone = 0,
+        Function = 1,
+        Resuource = 2, // Fixed typo: was "Resuource"
+        Prompt = 3,
+    };
+
+    explicit ToolCallEntry()
+        : m_toolIndex(0)
+    {}
+
+    ToolCallEntry(const ToolCallEntry &other)
+        : m_toolIndex(other.m_toolIndex)
+        , m_toolType(other.m_toolType)
+        , m_toolCallId(other.m_toolCallId)
+        , m_functionName(other.m_functionName)
+        , m_arguments(other.m_arguments)
+    {}
+
+    // Assignment operator
+    ToolCallEntry &operator=(const ToolCallEntry &other)
+    {
+        if (this != &other) { // Self-assignment check
+            m_toolIndex = other.m_toolIndex;
+            m_toolType = other.m_toolType;
+            m_toolCallId = other.m_toolCallId;
+            m_functionName = other.m_functionName;
+            m_arguments = other.m_arguments;
+        }
+        return *this;
+    }
+
+    // Comparison operator
+    bool operator==(const ToolCallEntry &other) const
+    {
+        return (m_toolIndex == other.m_toolIndex          //
+                && m_toolType == other.m_toolType         //
+                && m_toolCallId == other.m_toolCallId     //
+                && m_functionName == other.m_functionName //
+                && m_arguments == other.m_arguments);
+    }
+
+    inline ToolType toolType() const
+    {
+        if (m_toolType.toLower() == "resource") {
+            return Resuource;
+        } else if (m_toolType.toLower() == "prompt") {
+            return Prompt;
+        } else if (m_toolType.toLower() == "function") {
+            return Function;
+        }
+        return TypeNone;
+    }
+
+    inline void setToolIndex(int value)
+    {
+        if (value != 0)
+            m_toolIndex = value;
+    }
+
+    inline int toolIndex() const { return m_toolIndex; }
+
+    inline void setToolType(const QString &value)
+    {
+        if (!value.trimmed().isEmpty())
+            m_toolType = value.trimmed();
+    }
+
+    inline const QString &toolTypeString() const { return m_toolType; }
+
+    inline const QString &toolCallId() const { return m_toolCallId; }
+
+    inline void setToolCallId(const QString &value)
+    {
+        if (!value.trimmed().isEmpty())
+            m_toolCallId = value.trimmed();
+    }
+
+    inline const QString &functionName() const { return m_functionName; }
+
+    inline void setFunctionName(const QString &value)
+    {
+        if (!value.trimmed().isEmpty())
+            m_functionName = value.trimmed();
+    }
+
+    inline const QString &arguments() const { return m_arguments; }
+
+    inline void setArguments(const QString &value)
+    {
+        if (!value.trimmed().isEmpty())
+            m_arguments = value.trimmed();
+    }
+
+    inline bool isValid() const
+    {
+        return !m_toolType.isEmpty()      //
+               && !m_toolCallId.isEmpty() //
+               && !m_functionName.isEmpty();
+    }
+
+private:
+    int m_toolIndex;
+    QString m_toolType;
+    QString m_toolCallId;
+    QString m_functionName;
+    QString m_arguments;
+};
+Q_DECLARE_METATYPE(ToolCallEntry::ToolType)
+
 class LLMChatClient;
 class ChatMessage : public QObject
 {
@@ -22,71 +135,6 @@ public:
         LlmRole = 6,
     };
     Q_ENUM(Role)
-
-    enum ToolType {
-        TypeNone = 0,
-        Function = 1,
-        Resuource = 2,
-        Prompt = 3,
-    };
-    Q_ENUM(ToolType)
-
-    struct ToolEntry
-    {
-        int m_toolIndex;
-        QString m_toolType;
-        QString m_toolCallId;
-        QString m_functionName;
-        //\"{\\\\\\\"project_directory\\\\\\\":\\\\\\\"/Users/eofmc/EoF/qtmcp\\\\\\\"}\\"
-        QString m_arguments;
-
-        inline ToolType toolType() const
-        {
-            if (m_toolType.toLower() == "resource") {
-                return Resuource;
-            } else if (m_toolType.toLower() == "prompt") {
-                return Prompt;
-            } else if (m_toolType.toLower() == "function") {
-                return Function;
-            }
-            return TypeNone;
-        }
-        inline void setToolIndex(int value)
-        {
-            if (value != 0)
-                m_toolIndex = value;
-        }
-        inline int toolIndex() const { return m_toolIndex; }
-        inline void setToolType(const QString &value)
-        {
-            if (!value.trimmed().isEmpty())
-                m_toolType = value.trimmed();
-        }
-        inline const QString &toolCallId() const { return m_toolCallId; }
-        inline void setToolCallId(const QString &value)
-        {
-            if (!value.trimmed().isEmpty())
-                m_toolCallId = value.trimmed();
-        }
-        inline const QString &functionName() const { return m_functionName; }
-        inline void setFunctionName(const QString &value)
-        {
-            if (!value.trimmed().isEmpty())
-                m_functionName = value.trimmed();
-        }
-        inline const QString &arguments() const { return m_arguments; }
-        inline void setArguments(const QString &value)
-        {
-            if (!value.trimmed().isEmpty())
-                m_arguments = value.trimmed();
-        }
-        inline bool isValid() const
-        {
-            return !m_toolType.isEmpty()      //
-                   && !m_toolCallId.isEmpty() // 
-                   && !m_functionName.isEmpty();
-        }
-    };
 
     explicit ChatMessage(QObject *parent);
     ChatMessage(const ChatMessage &other); // Copy constructor
@@ -107,7 +155,7 @@ public:
      * @brief mergeToolsFrom
      * @param tool
      */
-    void mergeToolsFrom(ChatMessage::ToolEntry &tool);
+    void mergeToolsFrom(ToolCallEntry &tool);
 
     inline const QString &content() const { return m_content; }
     inline Role role() const { return m_role; }
@@ -121,8 +169,8 @@ public:
     inline int choiceIndex() const { return m_choiceIndex; }
     inline const QJsonObject &stats() const { return m_stats; }
     inline const QJsonObject &usage() const { return m_usage; }
-    inline const QList<ToolEntry> &tools() const { return m_tools; }
-    inline const QString &toolContent() const { return m_toolContent; }
+    inline const QList<ToolCallEntry> &toolCalls() const { return m_toolCalls; }
+    inline const QByteArray &toolContent() const { return m_toolContent; }
 
 public slots:
     void appendContent(const QString &content);
@@ -137,9 +185,9 @@ public slots:
     void setChoiceIndex(int choiceIndex);
     void setStats(const QJsonObject &stats);
     void setUsage(const QJsonObject &usage);
-    void addTools(const QList<ChatMessage::ToolEntry> &tools);
-    void setTools(const QList<ChatMessage::ToolEntry> &tools);
-    void setToolContent(const QString &content);
+    void addTools(const QList<ToolCallEntry> &tools);
+    void setToolCalls(const QList<ToolCallEntry> &tools);
+    void setToolContent(const QByteArray &content);
 
 private:
     QString m_content;
@@ -153,12 +201,9 @@ private:
     int m_choiceIndex;
     QJsonObject m_stats;
     QJsonObject m_usage;
-    QList<ToolEntry> m_tools;
-    QString m_toolContent;
+    QList<ToolCallEntry> m_toolCalls;
+    QByteArray m_toolContent;
 };
-
-Q_DECLARE_METATYPE(ChatMessage::ToolEntry)
-Q_DECLARE_METATYPE(ChatMessage::ToolType)
 
 // Comparison operators
 bool operator==(const ChatMessage &lhs, const ChatMessage &rhs);

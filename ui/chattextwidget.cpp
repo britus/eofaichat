@@ -337,6 +337,8 @@ void ChatTextWidget::appendMarkdown(ChatMessage *message)
     QString markdown = message->content();
     if (message->role() == ChatMessage::SystemRole) {
         markdown = "```system\n" + markdown + "\n```";
+    } else if (message->role() == ChatMessage::ToolingRole) {
+        markdown = "```system\n" + markdown + "\n```";
     } else if (markdown.startsWith("{") && markdown.endsWith("}")) {
         markdown = "```json\n" + markdown + "\n```";
     } else if (markdown.startsWith("[") && markdown.endsWith("]")) {

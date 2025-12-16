@@ -37,7 +37,6 @@ public:
 
     ChatMessage *messageAt(int index) const;
     ChatMessage *messageById(const QString &id);
-    QByteArray chatContent() const;
 
     // Save and load methods
     bool saveToFile(const QString &fileName) const;
@@ -50,7 +49,7 @@ public slots:
 signals:
     void streamCompleted();
     void errorOccurred(const QString &error);
-    void toolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);
+    void toolRequest(ChatMessage *message, const ToolCallEntry &tool);
     void messageAdded(ChatMessage *message);
     void messageRemoved(int index);
     void messageChanged(int index, ChatMessage *message);
@@ -65,7 +64,7 @@ private:
     inline bool parseChoices(ChatMessage *message, const QJsonArray &choices);
     inline bool parseChoiceObject(ChatMessage *message, const QJsonObject &choice);
     inline bool parseToolCalls(ChatMessage *message, const QJsonArray &toolCalls);
-    inline bool parseToolCall(const QJsonObject toolObject, ChatMessage::ToolEntry &tool) const;
+    inline bool parseToolCall(const QJsonObject toolObject, ToolCallEntry &tool) const;
     inline void checkAndRunTooling(ChatMessage *messge);
 };
 

@@ -132,49 +132,6 @@ ChatMessage *ChatModel::addMessage(ChatMessage *message)
     return message;
 }
 
-QByteArray ChatModel::chatContent() const
-{
-    QByteArray result;
-    foreach (ChatMessage *message, m_messages) {
-        if (message->toolContent().isEmpty()) {
-            if (!message->content().isEmpty()) {
-                QString role = "user";
-                switch (message->role()) {
-                    case ChatMessage::UserRole: {
-                        role = "user";
-                        break;
-                    }
-                    case ChatMessage::SystemRole: {
-                        role = "system";
-                        break;
-                    }
-                    case ChatMessage::AssistantRole: {
-                        role = "assistant";
-                        break;
-                    }
-                    case ChatMessage::ChatRole: {
-                        role = "user";
-                        break;
-                    }
-                    default: {
-                        role = "user";
-                        break;
-                    }
-                }
-                role = QStringLiteral("\n%1\n").arg(role);
-                result.append(role.toUtf8());
-                result.append(message->content().toUtf8());
-                result.append("\n\n");
-            }
-        } else {
-            result.append("\nassistant\n");
-            result.append(message->toolContent().toUtf8());
-            result.append("\n\n");
-        }
-    }
-    return result;
-}
-
 ChatMessage *ChatModel::messageById(const QString &id)
 {
     foreach (ChatMessage *message, m_messages) {
@@ -224,12 +181,12 @@ bool ChatModel::saveToFile(const QString &fileName) const
 
     // Write to file
     QFile file(fileName);
-    if (!file.open(QIODevice::WriteOnly)) {
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         qWarning() << "Failed to open file for writing:" << fileName;
         return false;
     }
 
-    file.write(doc.toJson(QJsonDocument::Compact));
+    file.write(doc.toJson(QJsonDocument::Indented));
     file.close();
 
     return true;
@@ -451,7 +408,7 @@ inline bool ChatModel::valueOf(const QJsonObject &response, const QString &key, 
     return validateValue(value, key, expectedType);
 }
 
-inline bool ChatModel::parseToolCall(const QJsonObject toolObject, ChatMessage::ToolEntry &tool) const
+inline bool ChatModel::parseToolCall(const QJsonObject toolObject, ToolCallEntry &tool) const
 {
     QJsonValue value;
 
@@ -503,7 +460,7 @@ inline bool ChatModel::parseToolCalls(ChatMessage *message, const QJsonArray &to
             reportError(tr("Invalid LLM reply message. Field 'tool_calls' is invalid."));
             continue;
         }
-        ChatMessage::ToolEntry tool = {};
+        ToolCallEntry tool;
         QJsonObject toolObject = toolCalls[i].toObject();
         //qDebug().noquote() << "[LLMChatClient] parseToolCalls msgId:" << message->id() << "toolObject:" << toolObject;
         parseToolCall(toolObject, tool);
@@ -623,7 +580,7 @@ inline bool ChatModel::parseChoices(ChatMessage *message, const QJsonArray &choi
 inline void ChatModel::checkAndRunTooling(ChatMessage *message)
 {
     // ToolService: execute tool through MCP or SDIO or onboard
-    foreach (const ChatMessage::ToolEntry &tool, message->tools()) {
+    foreach (const ToolCallEntry &tool, message->toolCalls()) {
         // Check for an incomplete tool object based on a streamed response
         if (!tool.isValid()) {
             qWarning("[LLMChatClient] checkAndRunTooling msgId: %s Invalid tool object in message.", //
@@ -633,10 +590,10 @@ inline void ChatModel::checkAndRunTooling(ChatMessage *message)
         qDebug("[LLMChatClient] checkAndRunTooling msgId: %s tool[%d] type=%s id=%s function=%s args=%s", //
                qPrintable(message->id()),
                tool.toolIndex(),
-               qPrintable(tool.m_toolType),
-               qPrintable(tool.m_toolCallId),
-               qPrintable(tool.m_functionName),
-               qPrintable(tool.m_arguments));
+               qPrintable(tool.toolTypeString()),
+               qPrintable(tool.toolCallId()),
+               qPrintable(tool.functionName()),
+               qPrintable(tool.arguments()));
         emit toolRequest(message, tool);
     }
 }

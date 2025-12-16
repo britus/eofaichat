@@ -31,7 +31,7 @@ public slots:
 
 private slots:
     void onUpdateChatText(int index, ChatMessage *message);
-    void onToolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);
+    void onToolRequest(ChatMessage *message, const ToolCallEntry &tool);
     void onHideProgressPopup();
     void onShowProgressPopup();
 

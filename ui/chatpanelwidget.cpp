@@ -399,7 +399,7 @@ inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
                     .content = cm->content(),
                 });
             } else {
-                foreach (auto t, cm->tools()) {
+                foreach (auto t, cm->toolCalls()) {
                     messages.append({
                         .role = cm->role(),
                         .toolName = t.functionName(),
@@ -515,6 +515,7 @@ void ChatPanelWidget::onUpdateChatText(int index, ChatMessage *message)
 {
     qDebug().noquote() << "[ChatPanelWidget] onUpdateChatText index:" << index //
                        << "id:" << message->id();
+
     // ensure UI thread
     QTimer::singleShot(10, this, [index, message, this]() {
         if (index < 0) {
@@ -523,6 +524,23 @@ void ChatPanelWidget::onUpdateChatText(int index, ChatMessage *message)
             m_chatView->updateMessage(message);
         }
     });
+
+    QDir path(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
+    if (!path.exists()) {
+        QFile::Permissions permissions;
+        permissions.setFlag(QFile::Permission::ReadOwner, true);
+        permissions.setFlag(QFile::Permission::ReadGroup, true);
+        permissions.setFlag(QFile::Permission::WriteOwner, true);
+        permissions.setFlag(QFile::Permission::WriteGroup, true);
+        permissions.setFlag(QFile::Permission::ExeOwner, true);
+        permissions.setFlag(QFile::Permission::ExeGroup, true);
+        if (!path.mkpath(path.absolutePath(), permissions)) {
+            qWarning("Unable to create directory: %s", qPrintable(path.absolutePath()));
+            return;
+        }
+    }
+
+    m_chatModel->saveToFile(path.absoluteFilePath("eofaichat-messages.json"));
 }
 
 inline void ChatPanelWidget::connectChatModel()
@@ -661,7 +679,7 @@ void ChatPanelWidget::dropEvent(QDropEvent *event)
 
 // ---------------- Chat Tooling Events ----------------------------
 
-void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::ToolEntry &toolCall)
+void ChatPanelWidget::onToolRequest(ChatMessage *message, const ToolCallEntry &toolCall)
 {
     ToolService toolService(this);
     ToolModel::ToolModelEntry tool;
@@ -691,15 +709,15 @@ void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::Too
     // ---------------------
 
     switch (toolCall.toolType()) {
-        case ChatMessage::ToolType::Function: {
+        case ToolCallEntry::ToolType::Function: {
             toolResult = toolService.execute(tool, toolCall.arguments());
             break;
         }
-        case ChatMessage::ToolType::Resuource: {
+        case ToolCallEntry::ToolType::Resuource: {
             toolResult = toolService.execute(tool, toolCall.arguments());
             break;
         }
-        case ChatMessage::ToolType::Prompt: {
+        case ToolCallEntry::ToolType::Prompt: {
             toolResult = toolService.execute(tool, toolCall.arguments());
             break;
         }
@@ -767,7 +785,7 @@ finish:
 
     ChatMessage cm(m_chatModel);
     cm.setRole(ChatMessage::Role::ToolingRole);
-    cm.setId(QStringLiteral("CPW-%1").arg(message->id()));
+    cm.setId(message->id());
     cm.setSystemFingerprint(cm.id());
     cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
     cm.setModel(m_llmclient->activeModel().id);
