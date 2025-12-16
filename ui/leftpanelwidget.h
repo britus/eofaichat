@@ -23,23 +23,23 @@ class LeftPanelWidget : public QWidget
 public:
     explicit LeftPanelWidget(QWidget *parent = nullptr);
 
-    // Method to create initial chat
-    void createChatWidget(const QString &name);
-
 signals:
     void downloadClicked();
     void aboutClicked();
     void chatSelected(QWidget *chatWidget);
     void chatRemoved(QWidget *chatWidget);
+    void connectionSelected(LLMConnection *connection);
+
+public slots:
+    void onNewChat();
 
 private slots:
-    void onNewChat();
     void onChatItemClicked(const QModelIndex &index);
     void onEditChat();
     void onDeleteChat();
     void onConfirmDelete();
     void onCancelDelete();
-    void onUpdates();
+    void onSelectConnection();
     void onChatNameChanged(const QString &newName);
     void onDeleteChatRequested(int row);
     void onContextMenu(const QPoint &point);
@@ -48,12 +48,12 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
 private:
-    ChatListModel *m_chatModel;
+    ChatListModel *m_chatListModel;
     LLMConnectionModel *m_llmModel;
     QListView *m_chatList; // Changed from QListWidget to QListView
     QPushButton *m_newChatButton;
     QPushButton *m_updatesButton;
-    QPushButton *m_downloadsButton;
+    //QPushButton *m_downloadsButton;
     QPushButton *m_aboutButton;
     QWidget *m_trashConfirmWidget;
     QPushButton *m_trashYes;

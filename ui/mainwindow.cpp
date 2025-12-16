@@ -46,8 +46,8 @@ MainWindow::MainWindow(QWidget *parent)
         // TODO: show about window
         qDebug() << "aboutClicked";
     });
-    connect(leftPanel, &LeftPanelWidget::chatSelected, this, &MainWindow::onChatSelected);
     connect(leftPanel, &LeftPanelWidget::chatRemoved, this, &MainWindow::onChatRemoved);
+    connect(leftPanel, &LeftPanelWidget::chatSelected, this, &MainWindow::onSwitchChatPanel);
     m_mainLayout->addWidget(leftPanel);
 
     // ---------------- Chat container ----------------
@@ -71,13 +71,14 @@ MainWindow::MainWindow(QWidget *parent)
     splitter->setHandleWidth(10);
 
     // Load splitter position
-    m_settingsManager->loadSplitterPosition(splitter);
+    m_settingsManager->loadSplitterPosition("main", splitter);
 
     connect(splitter, &QSplitter::splitterMoved, this, [this, splitter](int, int) { //
-        m_settingsManager->saveSplitterPosition(splitter);
+        m_settingsManager->saveSplitterPosition("main", splitter);
     });
     connect(qApp, &QApplication::aboutToQuit, this, [this] { //
         m_settingsManager->saveWindowSize(this);
+        m_connectionModel->saveConnections();
     });
 
     // Setup menu bar
@@ -85,7 +86,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Create initial chat
     QTimer::singleShot(500, this, [leftPanel]() { //
-        leftPanel->createChatWidget(tr("New LLM chat"));
+        leftPanel->onNewChat();
     });
 }
 
@@ -155,7 +156,7 @@ void MainWindow::onChatRemoved(QWidget *chatWidget)
     }
 }
 
-void MainWindow::onChatSelected(QWidget *chatWidget)
+void MainWindow::onSwitchChatPanel(QWidget *chatWidget)
 {
     // Get the existing layout or create a new one if it doesn't exist
     QVBoxLayout *chatLayout = qobject_cast<QVBoxLayout *>(m_contentWidget->layout());

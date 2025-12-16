@@ -29,9 +29,10 @@ public:
     inline SyntaxColorModel *syntaxModel() const { return m_syntaxModel; }
     inline ToolModel *toolModel() const { return m_toolModel; }
     inline SettingsManager *settings() const { return m_settingsManager; }
+    inline LLMConnectionModel *llmConnections() { return m_connectionModel; }
 
 private slots:
-    void onChatSelected(QWidget *chatWidget);
+    void onSwitchChatPanel(QWidget *chatWidget);
     void onChatRemoved(QWidget *chatWidget);
     void onManageConnections();
 

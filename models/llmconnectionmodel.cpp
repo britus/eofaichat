@@ -25,15 +25,9 @@ void LLMConnectionModel::loadConnections()
         QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
         file.close();
 
+        // Load connections
         if (doc.isObject()) {
             QJsonObject rootObj = doc.object();
-
-            // Load default connection name
-            if (rootObj.contains("defaultConnection")) {
-                m_defaultConnectionName = rootObj["defaultConnection"].toString();
-            }
-
-            // Load connections
             if (rootObj.contains("connections") && rootObj["connections"].isArray()) {
                 QJsonArray connectionsArray = rootObj["connections"].toArray();
 
@@ -85,9 +79,6 @@ void LLMConnectionModel::saveConnections()
 
     QJsonObject rootObj;
 
-    // Set default connection name
-    rootObj["defaultConnection"] = m_defaultConnectionName;
-
     // Convert connections to JSON array
     QJsonArray connectionsArray;
     for (const auto &connection : m_connections.values()) {
@@ -119,6 +110,41 @@ void LLMConnectionModel::saveConnections()
         file.write(doc.toJson());
         file.close();
     }
+}
+
+LLMConnection LLMConnectionModel::defaultConnection() const
+{
+    // find default connection
+    foreach (auto &c, getAllConnections()) {
+        if (c.isDefault()) {
+            return c;
+        }
+    }
+    return {};
+}
+
+void LLMConnectionModel::setDefaultConnection(const QString &name)
+{
+    // Clear previous default flag
+    foreach (auto &key, m_connections.keys()) {
+        LLMConnection c = m_connections[key];
+        if (c.m_isDefault) {
+            c.m_isDefault = false;
+            m_connections[key] = c;
+        }
+    }
+
+    // Set new default
+    foreach (auto &key, m_connections.keys()) {
+        if (key == name) {
+            LLMConnection c = m_connections[key];
+            c.m_isDefault = true;
+            m_connections[key] = c;
+            break;
+        }
+    }
+
+    saveConnections();
 }
 
 QList<LLMConnection> LLMConnectionModel::getAllConnections() const
@@ -170,44 +196,10 @@ void LLMConnectionModel::removeConnection(const QString &name)
     foreach (auto &nameKey, m_connections.keys()) {
         if (nameKey == name) {
             m_connections.remove(nameKey);
-            // If this was the default connection, clear it
-            if (m_defaultConnectionName == name) {
-                m_defaultConnectionName.clear();
-            }
             saveConnections();
             return;
         }
     }
-}
-
-void LLMConnectionModel::setDefaultConnection(const QString &name)
-{
-    // Clear previous default flag
-    foreach (auto &nameKey, m_connections.keys()) {
-        LLMConnection c = m_connections[nameKey];
-        if (c.m_isDefault) {
-            c.m_isDefault = false;
-            m_connections[nameKey] = c;
-        }
-    }
-
-    // Set new default
-    foreach (auto &nameKey, m_connections.keys()) {
-        if (nameKey == name) {
-            LLMConnection c = m_connections[nameKey];
-            c.m_isDefault = true;
-            m_connections[nameKey] = c;
-            break;
-        }
-    }
-
-    m_defaultConnectionName = name;
-    saveConnections();
-}
-
-QString LLMConnectionModel::getDefaultConnectionName() const
-{
-    return m_defaultConnectionName;
 }
 
 QString LLMConnectionModel::getConfigFileName() const
@@ -305,7 +297,6 @@ void LLMConnectionModel::loadDefaultConnections()
     data.setEndpointUri(LLMConnection::EndpointCompletion, "/v1/chat/completions");
     m_connections["Hugging Face"] = data;
 
-    m_defaultConnectionName = "LLM-Studio Server";
     saveConnections();
 }
 
@@ -322,43 +313,6 @@ int LLMConnectionModel::columnCount(const QModelIndex &parent) const
     if (parent.isValid())
         return 0;
     return ColumnCount;
-}
-
-QVariant LLMConnectionModel::data(const QModelIndex &index, int role) const
-{
-    if (!index.isValid() || index.row() >= m_connections.size())
-        return QVariant();
-
-    auto it = m_connections.begin();
-    std::advance(it, index.row());
-    const LLMConnection &connection = it.value();
-
-    switch (role) {
-        case Qt::DisplayRole:
-            switch (index.column()) {
-                case NameColumn:
-                    return connection.m_name;
-                case ProviderColumn:
-                    return connection.m_provider;
-                case ApiUrlColumn:
-                    return connection.m_apiUrl;
-                case IsDefaultColumn:
-                    return connection.m_isDefault ? "Yes" : "No";
-                case IsEnabledColumn:
-                    return connection.m_isEnabled ? "Yes" : "No";
-                default:
-                    return QVariant();
-            }
-        case Qt::CheckStateRole:
-            if (index.column() == IsDefaultColumn) {
-                return connection.m_isDefault ? Qt::Checked : Qt::Unchecked;
-            } else if (index.column() == IsEnabledColumn) {
-                return connection.m_isEnabled ? Qt::Checked : Qt::Unchecked;
-            }
-            return QVariant();
-        default:
-            return QVariant();
-    }
 }
 
 QVariant LLMConnectionModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -398,6 +352,77 @@ Qt::ItemFlags LLMConnectionModel::flags(const QModelIndex &index) const
     }
 
     return flags;
+}
+
+QVariant LLMConnectionModel::data(const QModelIndex &index, int role) const
+{
+    if (!index.isValid() || index.row() >= m_connections.size())
+        return QVariant();
+
+    auto it = m_connections.begin();
+    std::advance(it, index.row());
+    const LLMConnection &connection = it.value();
+
+    switch (role) {
+        case Qt::UserRole: {
+            return QVariant::fromValue<LLMConnection>(connection);
+        }
+        case NameRole: {
+            return connection.m_name;
+            break;
+        }
+        case ProviderRole: {
+            return connection.m_provider;
+            break;
+        }
+        case ApiUrlRole: {
+            return connection.m_apiUrl;
+            break;
+        }
+        case ApiKeyRole: {
+            return connection.m_apiKey;
+            break;
+        }
+        case AuthTypeRole: {
+            return QVariant::fromValue<LLMConnection::AuthType>(connection.m_authType);
+            break;
+        }
+        case IsEnabledRole: {
+            return connection.m_isEnabled;
+            break;
+        }
+        case IsDefaultRole: {
+            return connection.m_isDefault;
+            break;
+        }
+        case Qt::DisplayRole:
+            switch (index.column()) {
+                case NameColumn:
+                    return connection.m_name;
+                case ProviderColumn:
+                    return connection.m_provider;
+                case ApiUrlColumn:
+                    return connection.m_apiUrl;
+                case IsDefaultColumn:
+                    return connection.m_isDefault ? "Yes" : "No";
+                case IsEnabledColumn:
+                    return connection.m_isEnabled ? "Yes" : "No";
+                default:
+                    return QVariant();
+            }
+#if 0
+        case Qt::CheckStateRole:
+            if (index.column() == IsDefaultColumn) {
+                return connection.m_isDefault ? Qt::Checked : Qt::Unchecked;
+            } else if (index.column() == IsEnabledColumn) {
+                return connection.m_isEnabled ? Qt::Checked : Qt::Unchecked;
+            }
+            return QVariant();
+#endif
+        default:
+            break;
+    }
+    return QVariant();
 }
 
 bool LLMConnectionModel::setData(const QModelIndex &index, const QVariant &value, int role)
@@ -475,7 +500,6 @@ bool LLMConnectionModel::setData(const QModelIndex &index, const QVariant &value
     if (changed) {
         // If this connection is being set as default, update the default connection name
         if (index.column() == IsDefaultRole && connection.m_isDefault) {
-            m_defaultConnectionName = name;
         }
         saveConnections();
         emit dataChanged(index, index, {role});

@@ -26,6 +26,9 @@ protected:
     void dropEvent(QDropEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
 
+public slots:
+    void onConnectionChanged(LLMConnection *connection);
+
 private slots:
     void onUpdateChatText(int index, ChatMessage *message);
     void onToolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);

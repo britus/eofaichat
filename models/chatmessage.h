@@ -1,6 +1,7 @@
 #ifndef CHATMESSAGE_H
 #define CHATMESSAGE_H
 
+#include <QDataStream>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QObject>
@@ -36,8 +37,9 @@ public:
         QString m_toolType;
         QString m_toolCallId;
         QString m_functionName;
-        //"{\"project_directory\":\"/Users/eofmc/EoF/qtmcp\"}"
+        //\"{\\\\\\\"project_directory\\\\\\\":\\\\\\\"/Users/eofmc/EoF/qtmcp\\\\\\\"}\\"
         QString m_arguments;
+
         inline ToolType toolType() const
         {
             if (m_toolType.toLower() == "resource") {
@@ -81,7 +83,7 @@ public:
         inline bool isValid() const
         {
             return !m_toolType.isEmpty()      //
-                   && !m_toolCallId.isEmpty() //
+                   && !m_toolCallId.isEmpty() // 
                    && !m_functionName.isEmpty();
         }
     };
@@ -94,6 +96,12 @@ public:
      * @return
      */
     QJsonObject toJson() const;
+
+    /**
+     * @brief fromJson
+     * @param json
+     */
+    void fromJson(const QJsonObject &json);
 
     /**
      * @brief mergeToolsFrom
@@ -148,6 +156,7 @@ private:
     QList<ToolEntry> m_tools;
     QString m_toolContent;
 };
+
 Q_DECLARE_METATYPE(ChatMessage::ToolEntry)
 Q_DECLARE_METATYPE(ChatMessage::ToolType)
 

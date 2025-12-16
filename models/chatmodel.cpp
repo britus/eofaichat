@@ -1,5 +1,9 @@
 #include "chatmodel.h"
 #include <QJsonDocument>
+#include <QFile>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QDebug>
 
 ChatModel::ChatModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -157,15 +161,15 @@ QByteArray ChatModel::chatContent() const
                         break;
                     }
                 }
-                role = QStringLiteral("\n<|im_start|>%1\n").arg(role);
+                role = QStringLiteral("\n%1\n").arg(role);
                 result.append(role.toUtf8());
                 result.append(message->content().toUtf8());
-                result.append("\n<|im_end|>\n");
+                result.append("\n\n");
             }
         } else {
-            result.append("\n<|im_start|>assistant\n");
+            result.append("\nassistant\n");
             result.append(message->toolContent().toUtf8());
-            result.append("\n<|im_end|>\n");
+            result.append("\n\n");
         }
     }
     return result;
@@ -198,4 +202,76 @@ void ChatModel::removeMessage(int index)
     endRemoveRows();
 
     emit messageRemoved(index);
+}
+
+// Save chat messages to a JSON file
+bool ChatModel::saveToFile(const QString &fileName) const
+{
+    QJsonArray messagesArray;
+    
+    // Convert each message to JSON
+    for (const ChatMessage *message : m_messages) {
+        QJsonObject messageObj = message->toJson();
+        messagesArray.append(messageObj);
+    }
+    
+    // Create the root object
+    QJsonObject rootObject;
+    rootObject["messages"] = messagesArray;
+    
+    // Create JSON document
+    QJsonDocument doc(rootObject);
+    
+    // Write to file
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "Failed to open file for writing:" << fileName;
+        return false;
+    }
+    
+    file.write(doc.toJson(QJsonDocument::Compact));
+    file.close();
+    
+    return true;
+}
+
+// Load chat messages from a JSON file
+bool ChatModel::loadFromFile(const QString &fileName)
+{
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open file for reading:" << fileName;
+        return false;
+    }
+    
+    QByteArray data = file.readAll();
+    file.close();
+    
+    QJsonDocument doc(QJsonDocument::fromJson(data));
+    if (doc.isNull() || !doc.isObject()) {
+        qWarning() << "Invalid JSON in file:" << fileName;
+        return false;
+    }
+    
+    QJsonObject rootObject = doc.object();
+    QJsonArray messagesArray = rootObject["messages"].toArray();
+    
+    // Clear current messages
+    clear();
+    
+    // Load each message from JSON
+    for (const QJsonValue &messageValue : messagesArray) {
+        if (messageValue.isObject()) {
+            QJsonObject messageObj = messageValue.toObject();
+            
+            // Create a new ChatMessage from JSON
+            ChatMessage *message = new ChatMessage(this);
+            message->fromJson(messageObj);
+            
+            // Add to model
+            addMessage(message);
+        }
+    }
+    
+    return true;
 }

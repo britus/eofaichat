@@ -27,6 +27,7 @@ private slots:
     void onSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void onOkClicked();
     void onCancelClicked();
+    void onItemDoubleClicked(const QModelIndex &index);
 
 private:
     void setupUI();

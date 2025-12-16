@@ -39,6 +39,7 @@ void LLMConnectionSelection::setupUI()
     // List view for connections
     m_listView = new QListView(this);
     m_listView->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_listView->setEditTriggers(QListView::NoEditTriggers);
     m_listView->setModel(m_model);
     mainLayout->addWidget(m_listView);
 
@@ -50,6 +51,7 @@ void LLMConnectionSelection::setupUI()
     connect(m_okButton, &QPushButton::clicked, this, &LLMConnectionSelection::onOkClicked);
     connect(m_cancelButton, &QPushButton::clicked, this, &LLMConnectionSelection::onCancelClicked);
     connect(m_listView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &LLMConnectionSelection::onSelectionChanged);
+    connect(m_listView, &QListView::doubleClicked, this, &LLMConnectionSelection::onItemDoubleClicked);
 
     mainLayout->addWidget(buttonBox);
 
@@ -97,4 +99,14 @@ void LLMConnectionSelection::onCancelClicked()
 {
     m_selectedConnectionName.clear();
     reject();
+}
+
+void LLMConnectionSelection::onItemDoubleClicked(const QModelIndex &index)
+{
+    if (index.isValid()) {
+        // Get the connection name from the model
+        QString connectionName = m_model->data(m_model->index(index.row(), 0), Qt::DisplayRole).toString();
+        m_selectedConnectionName = connectionName;
+        accept();
+    }
 }

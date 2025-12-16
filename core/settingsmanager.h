@@ -17,8 +17,8 @@ public:
     void loadWindowSize(QWidget *window);
 
     // Splitter settings
-    void saveSplitterPosition(QSplitter *splitter);
-    void loadSplitterPosition(QSplitter *splitter);
+    void saveSplitterPosition(const QString prefix, QSplitter *splitter);
+    void loadSplitterPosition(const QString prefix, QSplitter *splitter, int default1 = 200, int default2 = 800);
 
     // Generic property setter/getter
     void setValue(const QString &key, const QVariant &value);

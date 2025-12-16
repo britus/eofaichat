@@ -7,6 +7,7 @@
 #include <llmconnectionmodel.h>
 #include <mainwindow.h>
 #include <progresspopup.h>
+#include <settingsmanager.h>
 #include <toolservice.h>
 #include <toolswidget.h>
 #include <QApplication>
@@ -73,7 +74,7 @@ ChatPanelWidget::ChatPanelWidget(LLMConnection *connection, SyntaxColorModel *sc
     splitter->setHandleWidth(10);
     splitter->insertWidget(0, messageContainer);
     splitter->insertWidget(1, inputContainer);
-    splitter->setSizes(QList<int>() << 800 << 100);
+    splitter->setSizes(QList<int>() << 700 << 100);
     mainLayout->addWidget(splitter);
 
     // Language Model Selection Widget
@@ -92,6 +93,14 @@ ChatPanelWidget::ChatPanelWidget(LLMConnection *connection, SyntaxColorModel *sc
 
     // Connect LLM client events
     connectLLMClient();
+
+    // Load splitter position
+    SettingsManager *settings = MainWindow::window()->settings();
+    settings->loadSplitterPosition("chat", splitter, 800, 100);
+
+    connect(splitter, &QSplitter::splitterMoved, this, [settings, splitter](int, int) { //
+        settings->saveSplitterPosition("chat", splitter);
+    });
 
     // Connect LLM server
     if (m_llmConnection && m_llmConnection->isValid()) {
@@ -156,23 +165,22 @@ inline QWidget *ChatPanelWidget::createInputArea(QWidget *parent)
     QWidget *inputWidget = createInputWidget(inputContainer);
     inputLayout->addWidget(inputWidget);
     inputContainer->setLayout(inputLayout);
-
     return inputContainer;
 }
 
 inline QWidget *ChatPanelWidget::createFileListWidget(QWidget *parent)
 {
-    FileListWidget *m_fileListWidget;
-    m_fileListWidget = new FileListWidget(m_fileListModel, parent);
-    m_fileListWidget->setObjectName("fileListWidget");
-    m_fileListWidget->setSizePolicy( //
+    FileListWidget *widget;
+    widget = new FileListWidget(m_fileListModel, parent);
+    widget->setObjectName("fileListWidget");
+    widget->setSizePolicy( //
         QSizePolicy::Expanding,
         QSizePolicy::Minimum);
     //m_fileListWidget->setMaximumHeight(100);
-    m_fileListWidget->setModel(m_fileListModel);
-    m_fileListWidget->setVisible(false);
+    widget->setModel(m_fileListModel);
+    widget->setVisible(false);
 
-    return m_fileListWidget;
+    return widget;
 }
 
 inline QWidget *ChatPanelWidget::createInputWidget(QWidget *parent)
@@ -189,7 +197,14 @@ inline QWidget *ChatPanelWidget::createInputWidget(QWidget *parent)
     m_messageInput->setAcceptDrops(true);
     m_messageInput->setSizePolicy( //
         QSizePolicy::Policy::Expanding,
-        QSizePolicy::Policy::Expanding);
+        QSizePolicy::Policy::MinimumExpanding);
+
+    connect(m_messageInput, &QTextEdit::textChanged, this, [this]() { //
+        QTextDocument *doc = m_messageInput->document();
+        //m_sendButton->setEnabled(doc->characterCount() > 0);
+        m_sendButton->setEnabled(doc->isModified());
+
+    });
 
     return m_messageInput;
 }
@@ -362,6 +377,7 @@ inline QPushButton *ChatPanelWidget::createToolsButton(QWidget *parent)
 inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
 {
     m_sendButton = new QPushButton(tr("Send"), parent);
+    m_sendButton->setEnabled(false);
 
     connect(m_sendButton, &QPushButton::clicked, this, [this]() {
         // check in conversation
@@ -486,6 +502,17 @@ inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
 
 // ==================================================
 
+void ChatPanelWidget::onConnectionChanged(LLMConnection *connection)
+{
+    m_llmConnection = connection;
+    if (m_llmConnection && m_llmConnection->isValid()) {
+        QTimer::singleShot(10, this, [this]() {
+            m_llmclient->setConnection(m_llmConnection);
+            m_llmclient->listModels();
+        });
+    }
+}
+
 void ChatPanelWidget::onUpdateChatText(int index, ChatMessage *message)
 {
     qDebug().noquote() << "[ChatPanelWidget] onUpdateChatText index:" << index //
@@ -569,6 +596,7 @@ void ChatPanelWidget::onHideProgressPopup()
     }
 
     m_sendButton->setText(tr("Send"));
+    m_sendButton->setEnabled(true);
     m_messageInput->setEnabled(true);
     m_attachButton->setEnabled(true);
     m_isConversating = false;

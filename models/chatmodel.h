@@ -1,7 +1,7 @@
 #ifndef CHATMODEL_H
 #define CHATMODEL_H
 
-#include "chatmessage.h"
+#include <chatmessage.h>
 #include <QAbstractListModel>
 #include <QList>
 
@@ -38,6 +38,10 @@ public:
     ChatMessage *messageAt(int index) const;
     ChatMessage *messageById(const QString &id);
     QByteArray chatContent() const;
+
+    // Save and load methods
+    bool saveToFile(const QString &fileName) const;
+    bool loadFromFile(const QString &fileName);
 
 signals:
     void messageAdded(ChatMessage *message);

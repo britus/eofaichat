@@ -11,7 +11,7 @@
 #include <QString>
 
 // LLMConnection data structure
-class LLMConnection : QObject
+class LLMConnection : public QObject
 {
     Q_OBJECT
 
@@ -183,7 +183,8 @@ public:
     void updateConnection(const QString &name, const LLMConnection &connection);
     void removeConnection(const QString &name);
     void setDefaultConnection(const QString &name);
-    QString getDefaultConnectionName() const;
+    void setDefaultConnection(const LLMConnection &connection);
+    LLMConnection defaultConnection() const;
 
     // QAbstractTableModel methods
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -199,7 +200,6 @@ private:
 
 private:
     QMap<QString, LLMConnection> m_connections;
-    QString m_defaultConnectionName;
 };
 Q_DECLARE_METATYPE(LLMConnectionModel::Roles)
 Q_DECLARE_METATYPE(LLMConnection)

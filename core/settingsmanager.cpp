@@ -85,28 +85,40 @@ void SettingsManager::loadWindowSize(QWidget *window)
     }
 }
 
-void SettingsManager::saveSplitterPosition(QSplitter *splitter)
+void SettingsManager::saveSplitterPosition(const QString prefix, QSplitter *splitter)
 {
-    if (!splitter)
+    if (!splitter || prefix.isEmpty())
         return;
 
     // Save splitter sizes
     const QList<int> sizes = splitter->sizes();
     if (!sizes.isEmpty()) {
-        m_settings->setValue("splitter_left", sizes.at(0));
-        m_settings->setValue("splitter_right", sizes.at(1));
+        m_settings->setValue( //
+            QStringLiteral("%1_splitter_left").arg(prefix),
+            sizes.at(0));
+        m_settings->setValue( //
+            QStringLiteral("%1_splitter_right").arg(prefix),
+            sizes.at(1));
         flushSettings();
     }
 }
 
-void SettingsManager::loadSplitterPosition(QSplitter *splitter)
+void SettingsManager::loadSplitterPosition(const QString prefix, QSplitter *splitter, int default1, int default2)
 {
     if (!splitter)
         return;
 
     // Load splitter sizes
-    int leftSize = m_settings->value("splitter_left", 200).toInt();
-    int rightSize = m_settings->value("splitter_right", 824).toInt(); // Default to remaining space
+    int leftSize = m_settings
+                       ->value( //
+                           QStringLiteral("%1_splitter_left").arg(prefix),
+                           default1)
+                       .toInt();
+    int rightSize = m_settings
+                        ->value( //
+                            QStringLiteral("%1_splitter_right").arg(prefix),
+                            default2)
+                        .toInt(); // Default to remaining space
 
     splitter->setSizes(QList<int>() << leftSize << rightSize);
 }

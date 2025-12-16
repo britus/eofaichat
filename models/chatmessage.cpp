@@ -39,6 +39,7 @@ ChatMessage::ChatMessage(const ChatMessage &other)
 
 void ChatMessage::mergeToolsFrom(ChatMessage::ToolEntry &tool)
 {
+
     auto updateTool = [](const ToolEntry &original, const ToolEntry &tool) -> ToolEntry const {
         ToolEntry org = original;
         if (!tool.m_toolType.isEmpty()) {
@@ -83,6 +84,7 @@ void ChatMessage::mergeToolsFrom(ChatMessage::ToolEntry &tool)
 
 void ChatMessage::setTools(const QList<ToolEntry> &tools)
 {
+
     if (!tools.isEmpty()) {
         foreach (auto tool, tools) {
             mergeToolsFrom(tool);
@@ -92,6 +94,7 @@ void ChatMessage::setTools(const QList<ToolEntry> &tools)
 
 void ChatMessage::setContent(const QString &content)
 {
+
     if (!content.isEmpty() && m_content != content) {
         m_content = content;
     }
@@ -99,6 +102,7 @@ void ChatMessage::setContent(const QString &content)
 
 void ChatMessage::setToolContent(const QString &content)
 {
+
     if (!content.isEmpty() && m_toolContent != content) {
         m_toolContent = content;
     }
@@ -106,6 +110,7 @@ void ChatMessage::setToolContent(const QString &content)
 
 void ChatMessage::appendContent(const QString &content)
 {
+
     if (!content.isEmpty() && !content.isEmpty()) {
         m_content.append(content);
     }
@@ -113,6 +118,7 @@ void ChatMessage::appendContent(const QString &content)
 
 void ChatMessage::setRole(Role role)
 {
+
     if (role != NoRole && m_role != role) {
         m_role = role;
     }
@@ -120,6 +126,7 @@ void ChatMessage::setRole(Role role)
 
 void ChatMessage::setCreated(qint64 created)
 {
+
     if (created != 0 && m_created != created) {
         m_created = created;
     }
@@ -127,6 +134,7 @@ void ChatMessage::setCreated(qint64 created)
 
 void ChatMessage::setId(const QString &id)
 {
+
     if (!id.isEmpty() && m_id != id) {
         m_id = id;
     }
@@ -134,6 +142,7 @@ void ChatMessage::setId(const QString &id)
 
 void ChatMessage::setModel(const QString &model)
 {
+
     if (!model.isEmpty() && m_model != model) {
         m_model = model;
     }
@@ -141,6 +150,7 @@ void ChatMessage::setModel(const QString &model)
 
 void ChatMessage::setObject(const QString &object)
 {
+
     if (!object.isEmpty() && m_object != object) {
         m_object = object;
     }
@@ -148,6 +158,7 @@ void ChatMessage::setObject(const QString &object)
 
 void ChatMessage::setSystemFingerprint(const QString &systemFingerprint)
 {
+
     if (!systemFingerprint.isEmpty() && m_systemFingerprint != systemFingerprint) {
         m_systemFingerprint = systemFingerprint;
     }
@@ -155,6 +166,7 @@ void ChatMessage::setSystemFingerprint(const QString &systemFingerprint)
 
 void ChatMessage::setFinishReason(const QString &finishReason)
 {
+
     if (!finishReason.isEmpty() && m_finishReason != finishReason) {
         m_finishReason = finishReason;
     }
@@ -162,6 +174,7 @@ void ChatMessage::setFinishReason(const QString &finishReason)
 
 void ChatMessage::setChoiceIndex(int choiceIndex)
 {
+
     if (choiceIndex != 0 && m_choiceIndex != choiceIndex) {
         m_choiceIndex = choiceIndex;
     }
@@ -169,6 +182,7 @@ void ChatMessage::setChoiceIndex(int choiceIndex)
 
 void ChatMessage::setStats(const QJsonObject &stats)
 {
+
     if (!stats.isEmpty() && m_stats != stats) {
         m_stats = stats;
     }
@@ -176,6 +190,7 @@ void ChatMessage::setStats(const QJsonObject &stats)
 
 void ChatMessage::setUsage(const QJsonObject &usage)
 {
+
     if (!usage.isEmpty() && m_usage != usage) {
         m_usage = usage;
     }
@@ -183,6 +198,7 @@ void ChatMessage::setUsage(const QJsonObject &usage)
 
 void ChatMessage::addTools(const QList<ChatMessage::ToolEntry> &tools)
 {
+
     m_tools.append(tools);
 }
 
@@ -221,6 +237,103 @@ QJsonObject ChatMessage::toJson() const
     return root;
 }
 
+void ChatMessage::fromJson(const QJsonObject &json)
+{
+    // Set basic properties
+    if (json.contains("content")) {
+        setContent(json["content"].toString());
+    }
+    
+    if (json.contains("role")) {
+        QString roleStr = json["role"].toString();
+        if (roleStr == "assistant") {
+            setRole(AssistantRole);
+        } else if (roleStr == "user") {
+            setRole(UserRole);
+        } else if (roleStr == "system") {
+            setRole(SystemRole);
+        } else {
+            setRole(UserRole); // Default to user role
+        }
+    }
+    
+    if (json.contains("created")) {
+        setCreated(json["created"].toVariant().toLongLong());
+    }
+    
+    if (json.contains("id")) {
+        setId(json["id"].toString());
+    }
+    
+    if (json.contains("model")) {
+        setModel(json["model"].toString());
+    }
+    
+    if (json.contains("object")) {
+        setObject(json["object"].toString());
+    }
+    
+    if (json.contains("system_fingerprint")) {
+        setSystemFingerprint(json["system_fingerprint"].toString());
+    }
+    
+    if (json.contains("finish_reason")) {
+        setFinishReason(json["finish_reason"].toString());
+    }
+    
+    if (json.contains("index")) {
+        setChoiceIndex(json["index"].toInt());
+    }
+    
+    if (json.contains("stats")) {
+        setStats(json["stats"].toObject());
+    }
+    
+    if (json.contains("usage")) {
+        setUsage(json["usage"].toObject());
+    }
+    
+    // Handle tool calls if present
+    if (json.contains("tool_calls") && json["tool_calls"].isArray()) {
+        QJsonArray toolCalls = json["tool_calls"].toArray();
+        QList<ToolEntry> tools;
+        
+        for (const QJsonValue &toolValue : toolCalls) {
+            if (toolValue.isObject()) {
+                QJsonObject toolObj = toolValue.toObject();
+                
+                ToolEntry tool;
+                if (toolObj.contains("type")) {
+                    tool.setToolType(toolObj["type"].toString());
+                }
+                if (toolObj.contains("id")) {
+                    tool.setToolCallId(toolObj["id"].toString());
+                }
+                if (toolObj.contains("function")) {
+                    QJsonObject function = toolObj["function"].toObject();
+                    if (function.contains("name")) {
+                        tool.setFunctionName(function["name"].toString());
+                    }
+                    if (function.contains("arguments")) {
+                        tool.setArguments(function["arguments"].toString());
+                    }
+                }
+                
+                if (tool.isValid()) {
+                    tools.append(tool);
+                }
+            }
+        }
+        
+        setTools(tools);
+    }
+    
+    // Handle tool_content if present
+    if (json.contains("tool_content")) {
+        setToolContent(json["tool_content"].toString());
+    }
+}
+
 // Comparison operators
 bool operator==(const ChatMessage &lhs, const ChatMessage &rhs)
 {
@@ -234,6 +347,7 @@ bool operator!=(const ChatMessage &lhs, const ChatMessage &rhs)
 
 bool operator<(const ChatMessage &lhs, const ChatMessage &rhs)
 {
+
     if (lhs.created() != rhs.created()) {
         return lhs.created() < rhs.created();
     }
@@ -248,15 +362,18 @@ bool operator<(const ChatMessage &lhs, const ChatMessage &rhs)
 
 bool operator>(const ChatMessage &lhs, const ChatMessage &rhs)
 {
+
     return rhs < lhs;
 }
 
 bool operator<=(const ChatMessage &lhs, const ChatMessage &rhs)
 {
+
     return !(lhs > rhs);
 }
 
 bool operator>=(const ChatMessage &lhs, const ChatMessage &rhs)
 {
+
     return !(lhs < rhs);
 }
