@@ -8,10 +8,9 @@
 #include <QStandardPaths>
 #include <QUrlQuery>
 
-LLMChatClient::LLMChatClient(ToolModel *toolModel, ChatModel *chatModel, QObject *parent)
+LLMChatClient::LLMChatClient(ToolModel *toolModel, QObject *parent)
     : QObject(parent)
     , m_toolModel(toolModel)
-    , m_chatModel(chatModel)
     , m_llmModels(new ModelListModel(this))
     , m_networkManager(new QNetworkAccessManager(this))
     , m_connection(nullptr)
@@ -154,6 +153,17 @@ void LLMChatClient::sendChat(const QString &model, const QList<QJsonObject> &mes
                     m_connection->endpointUri( //
                         LLMConnection::EndpointCompletion));
     }
+}
+
+void LLMChatClient::cancelRequest()
+{
+    m_networkManager->clearAccessCache();
+    m_networkManager->clearConnectionCache();
+}
+
+void LLMChatClient::setActiveModel(const ModelListModel::ModelEntry &model)
+{
+    m_llmModel = model;
 }
 
 void LLMChatClient::listModels()
@@ -354,7 +364,7 @@ void LLMChatClient::onLLMResponse(QNetworkReply *reply)
     // Check if a streamed LLM message
     if (data.startsWith("data:") || m_isResponseStream) {
         qDebug().noquote() << "[LLMChatClient] onFinished -> stream message.";
-        parseResponse(data);
+        parseDataStream(data);
         m_isResponseStream = true;
         goto finish;
     }
@@ -376,379 +386,9 @@ void LLMChatClient::onLLMResponse(QNetworkReply *reply)
     }
     // Handle regular LLM message
     else {
-        parseResponse(response);
+        parseDataObject(response);
     }
 
 finish:
     reply->deleteLater();
-}
-
-inline void LLMChatClient::parseResponse(const QByteArray &data)
-{
-    // Split by newlines and process each line
-    const uint streamTagLen = QStringLiteral("data:").length();
-    const QString responseStr(data);
-    const QStringList lines = responseStr.split('\n');
-
-    foreach (const QString &line, lines) {
-        if (line.isEmpty()) {
-            continue;
-        }
-
-        // Remove "data: "
-        QString dataStr = line.mid(streamTagLen).trimmed();
-
-        //qDebug().noquote() << "[LLMChatClient] parseResponse line:" << dataStr;
-
-        // Is end of stream ?
-        if (dataStr.trimmed() == "[DONE]") {
-            emit streamCompleted();
-            continue;
-        }
-
-        // test JSON forment completed
-        QJsonParseError error;
-        QJsonDocument doc = QJsonDocument::fromJson(dataStr.toUtf8(), &error);
-        if (doc.isNull() || error.error != QJsonParseError::NoError) {
-            qWarning().noquote() << "[LLMChatClient] parseResponse error:" << error.errorString();
-            continue;
-        }
-
-        parseResponse(doc.object());
-    }
-}
-
-static inline QByteArray jsonTypeToString(QJsonValue::Type type)
-{
-    switch (type) {
-        case QJsonValue::Undefined:
-            return "Undefined";
-        case QJsonValue::Null:
-            return "Null";
-        case QJsonValue::Bool:
-            return "Boolean";
-        case QJsonValue::Double:
-            return "Double";
-        case QJsonValue::String:
-            return "String";
-        case QJsonValue::Array:
-            return "Array";
-        case QJsonValue::Object:
-            return "Object";
-        default:
-            return "Unknown Type";
-    }
-}
-
-inline bool LLMChatClient::validateValue(const QJsonValue &value, const QString &key, const QJsonValue::Type expectedType)
-{
-    const QByteArray msg1 = "[LLMChatClient] Invalid LLM reply message. Field '%1' is missing.";
-    const QByteArray msg2 = "[LLMChatClient] Field '%1' must not be NULL or empty.";
-    const QByteArray msg3 = "[LLMChatClient] Field '%1' must be of type %2.";
-    if (value.isUndefined()) {
-        reportError(tr(msg1).arg(key)); // Key is missing
-        return false;
-    }
-    if (value.isNull()) {
-        reportError(tr(msg2).arg(key)); // Value is NULL
-        return false;
-    }
-    if (value.type() != expectedType) {
-        reportError(tr(msg3).arg(key).arg(jsonTypeToString(expectedType))); // Type mismatch
-        return false;
-    }
-    return true;
-}
-
-inline bool LLMChatClient::valueOf(const QJsonObject &response, const QString &key, const QJsonValue::Type expectedType, QJsonValue &value)
-{
-    value = response.value(key);
-    return validateValue(value, key, expectedType);
-}
-
-inline bool LLMChatClient::parseToolCall(const QJsonObject toolObject, ChatMessage::ToolEntry &tool) const
-{
-    QJsonValue value;
-
-    // Extract type - may empty basedd on streamed message
-    value = toolObject["type"];
-    if (!value.isNull() && value.isString()) {
-        tool.setToolType(value.toString());
-    }
-
-    // Extract id - may empty basedd on streamed message
-    value = toolObject["id"];
-    if (!value.isNull() && value.isString()) {
-        tool.setToolCallId(value.toString());
-    }
-
-    // Extract index - may empty basedd on streamed message
-    value = toolObject["index"];
-    if (!value.isNull() && value.isDouble()) {
-        tool.setToolIndex(static_cast<int>(value.toDouble()));
-    }
-
-    // Extract function information - may empty basedd on streamed message
-    value = toolObject["function"];
-    if (!value.isNull() && value.isObject()) {
-        QJsonObject object = value.toObject();
-        // Extract name - may empty basedd on streamed message
-        value = object["name"];
-        if (!value.isNull() && value.isString()) {
-            tool.setFunctionName(value.toString());
-        }
-        // Extract arguments - may empty basedd on streamed message
-        value = object["arguments"];
-        if (!value.isNull() && value.isString()) {
-            tool.setArguments(value.toString());
-        }
-    }
-
-    return true;
-}
-
-inline bool LLMChatClient::parseToolCalls(ChatMessage *message, const QJsonArray &toolCalls)
-{
-    // May empty base on streamed message
-    if (toolCalls.isEmpty()) {
-        return true;
-    }
-    for (int i = 0; i < toolCalls.count(); i++) {
-        if (toolCalls[i].isNull() || !toolCalls[i].isObject()) {
-            reportError(tr("Invalid LLM reply message. Field 'tool_calls' is invalid."));
-            continue;
-        }
-        ChatMessage::ToolEntry tool = {};
-        QJsonObject toolObject = toolCalls[i].toObject();
-        //qDebug().noquote() << "[LLMChatClient] parseToolCalls msgId:" << message->id() << "toolObject:" << toolObject;
-        parseToolCall(toolObject, tool);
-        message->mergeToolsFrom(tool);
-    }
-    return true;
-}
-
-inline bool LLMChatClient::parseChoiceObject(ChatMessage *message, const QJsonObject &choiceObject)
-{
-    //qDebug().noquote() << "[LLMChatClient] parseChoiceObject msgId:" << message->id() << "choice object:" << choiceObject;
-
-    QJsonObject choice = choiceObject;
-    QJsonValue value;
-
-    // Extract stream delta message object if exist
-    // 'message' and 'delta' are mutual exclusive!
-    if (choice.contains("delta")) {
-        value = choice["delta"];
-        if (value.isNull() || !value.isObject()) {
-            reportError(tr("Invalid LLM reply message. Field 'delta' is invalid."));
-            return false;
-        }
-        // Set delta object as regular 'message' object and parse again
-        choice["message"] = value.toObject();
-    }
-
-    // Extract finish_reason - may empty or null or not exist
-    if (choice.contains("finish_reason")) {
-        value = choice["finish_reason"];
-        if (!value.isNull() && value.isString()) {
-            message->setFinishReason(value.toString());
-        }
-    }
-
-    // Extract index - may empty or null or not exist
-    if (choice.contains("index")) {
-        value = choice["index"];
-        if (!value.isNull() && value.isString()) {
-            message->setChoiceIndex(static_cast<int>(value.toDouble()));
-        }
-    }
-
-    // normale message or tool call item - must be exist!
-    value = choice["message"];
-    if (value.isNull() || !value.isObject()) {
-        reportError(tr("Invalid LLM reply message. Field 'message or delta' is invalid."));
-        return false;
-    }
-
-    // get message object
-    QJsonObject messageObj = value.toObject();
-
-    // Extract content if exist
-    if (messageObj.contains("content")) {
-        value = messageObj["content"];
-        if (!value.isNull() && value.isString()) {
-            message->appendContent(value.toString());
-        }
-    }
-
-    // Extract message role
-    if (messageObj.contains("role")) {
-        value = messageObj["role"];
-        if (!value.isNull() && value.isString()) {
-            QString roleStr = value.toString().toLower().trimmed();
-            if (roleStr == "assistant") {
-                message->setRole(ChatMessage::AssistantRole);
-            } else if (roleStr == "user") {
-                message->setRole(ChatMessage::UserRole);
-            } else if (roleStr == "system") {
-                message->setRole(ChatMessage::SystemRole);
-            } else {
-                message->setRole(ChatMessage::AssistantRole); // Default
-            }
-        } else if (message->role() == ChatMessage::NoRole) {
-            message->setRole(ChatMessage::AssistantRole); // Default
-        }
-    }
-
-    // Extract tool_calls if exist.
-    if (messageObj.contains("tool_calls")) {
-        value = messageObj["tool_calls"];
-        if (value.isNull() || !value.isArray()) {
-            reportError(tr("Invalid LLM reply message. Field 'tool_calls' is invalid."));
-            return false;
-        }
-        QJsonArray tools = value.toArray();
-        if (!tools.isEmpty()) {
-            return parseToolCalls(message, tools);
-        }
-    }
-
-    return true;
-}
-
-inline bool LLMChatClient::parseChoices(ChatMessage *message, const QJsonArray &choices)
-{
-    // can be empty on 'stop' or 'tools_call' condition
-    if (choices.isEmpty()) {
-        return true;
-    }
-    for (int i = 0; i < choices.count(); i++) {
-        QJsonValue value = choices.at(i);
-        // skip invalid entries
-        if (!validateValue(value, QStringLiteral("choices[%1]").arg(i), QJsonValue::Type::Object)) {
-            reportError("Invalid LLM reply message. Choices element must be of type object.");
-            continue;
-        }
-        if (!parseChoiceObject(message, value.toObject())) {
-            return false;
-        }
-    }
-    return true;
-}
-
-inline void LLMChatClient::parseResponse(const QJsonObject &response)
-{
-    //qDebug().noquote() << "[LLMChatClient] parseResponse object:" << response;
-
-    bool isNew = false;
-    ChatMessage *message = 0L;
-    QJsonValue value;
-
-    // handle chat message response
-    if (!valueOf(response, "id", QJsonValue::Type::String, value)) {
-        return;
-    }
-
-    // take existing message or create new one if not exist
-    message = m_chatModel->messageById(value.toString());
-    if (message == nullptr) {
-        message = new ChatMessage(m_chatModel);
-        isNew = true;
-    }
-    message->setId(value.toString());
-
-    if (!valueOf(response, "object", QJsonValue::Type::String, value)) {
-        goto error_exit;
-    }
-    message->setObject(value.toString());
-
-    if (!valueOf(response, "created", QJsonValue::Type::Double, value)) {
-        goto error_exit;
-    }
-    message->setCreated(static_cast<qint64>(value.toDouble()));
-
-    if (!valueOf(response, "model", QJsonValue::Type::String, value)) {
-        goto error_exit;
-    }
-    message->setModel(value.toString());
-
-    if (!valueOf(response, "system_fingerprint", QJsonValue::Type::String, value)) {
-        goto error_exit;
-    }
-    message->setSystemFingerprint(value.toString());
-
-    // optional header fields
-    if (response.contains("stats")) {
-        if (!valueOf(response, "stats", QJsonValue::Type::Object, value)) {
-            goto error_exit;
-        }
-        message->setStats(value.toObject());
-    }
-    if (response.contains("usage")) {
-        if (!valueOf(response, "usage", QJsonValue::Type::Object, value)) {
-            goto error_exit;
-        }
-        message->setUsage(value.toObject());
-    }
-
-    if (!valueOf(response, "choices", QJsonValue::Type::Array, value)) {
-        goto error_exit;
-    }
-    if (!parseChoices(message, value.toArray())) {
-        goto error_exit;
-    }
-
-    if (isNew) {
-        chatModel()->addMessage(message);
-    }
-
-    // run tooling (tool_calls)
-    if (message->finishReason().toLower().trimmed() == "tool_calls") {
-        checkAndRunTooling(message);
-    }
-
-    // conversation stopped
-    if (message->finishReason().toLower().trimmed() == "stop") {
-        emit streamCompleted();
-    }
-
-    // sueccess
-    return;
-
-error_exit:
-    if (message) {
-        message->deleteLater();
-    }
-}
-
-inline void LLMChatClient::checkAndRunTooling(ChatMessage *message)
-{
-    // ToolService: execute tool through MCP or SDIO or onboard
-    foreach (const ChatMessage::ToolEntry &tool, message->tools()) {
-        // Check for an incomplete tool object based on a streamed response
-        if (!tool.isValid()) {
-            qWarning("[LLMChatClient] checkAndRunTooling msgId: %s Invalid tool object in message.", //
-                     qPrintable(message->id()));
-            continue;
-        }
-        qDebug("[LLMChatClient] checkAndRunTooling msgId: %s tool[%d] type=%s id=%s function=%s args=%s", //
-               qPrintable(message->id()),
-               tool.toolIndex(),
-               qPrintable(tool.m_toolType),
-               qPrintable(tool.m_toolCallId),
-               qPrintable(tool.m_functionName),
-               qPrintable(tool.m_arguments));
-        emit toolRequest(message, tool);
-    }
-}
-
-void LLMChatClient::cancelRequest()
-{
-    m_networkManager->clearAccessCache();
-    m_networkManager->clearConnectionCache();
-    emit streamCompleted();
-}
-
-void LLMChatClient::setActiveModel(const ModelListModel::ModelEntry &model)
-{
-    m_llmModel = model;
 }

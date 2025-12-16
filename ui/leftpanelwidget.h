@@ -35,6 +35,7 @@ public slots:
 
 private slots:
     void onChatItemClicked(const QModelIndex &index);
+    void onChatItemDoubleClicked(const QModelIndex &index);
     void onEditChat();
     void onDeleteChat();
     void onConfirmDelete();

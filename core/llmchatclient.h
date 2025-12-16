@@ -32,7 +32,7 @@ public:
         QString toolResult;
     };
 
-    explicit LLMChatClient(ToolModel *toolModel, ChatModel *chatModel, QObject *parent = nullptr);
+    explicit LLMChatClient(ToolModel *toolModel, QObject *parent = nullptr);
 
     ~LLMChatClient();
 
@@ -49,7 +49,6 @@ public:
     void listModels();
 
     inline ToolModel *toolModel() { return m_toolModel; }
-    inline ChatModel *chatModel() { return m_chatModel; }
     inline ModelListModel *llmModels() { return m_llmModels; }
     inline const ModelListModel::ModelEntry &activeModel() const { return m_llmModel; }
 
@@ -60,8 +59,8 @@ public slots:
 signals:
     void errorOccurred(const QString &error);
     void networkError(QNetworkReply::NetworkError error, const QString &message);
-    void streamCompleted();
-    void toolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);
+    void parseDataStream(const QByteArray &data);
+    void parseDataObject(const QJsonObject &response);
 
 protected:
     // Chat completion methods
@@ -77,7 +76,6 @@ private slots:
 private:
     ModelListModel::ModelEntry m_llmModel;
     ToolModel *m_toolModel;
-    ChatModel *m_chatModel;
     ModelListModel *m_llmModels;
     QNetworkAccessManager *m_networkManager;
     LLMConnection *m_connection;
@@ -87,17 +85,8 @@ private:
 private:
     inline void reportError(const QString &message);
     inline void sendRequest(const QJsonObject &requestBody, const QString &endpoint, bool isGetMethod = false);
-    inline QJsonObject buildChatCompletionRequest(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream);
-    inline bool validateValue(const QJsonValue &value, const QString &key, const QJsonValue::Type expectedType);
-    inline bool valueOf(const QJsonObject &response, const QString &key, const QJsonValue::Type expectedType, QJsonValue &value);
-    inline void parseResponse(const QJsonObject &response);
-    inline void parseResponse(const QByteArray &data);
-    inline bool parseChoices(ChatMessage *message, const QJsonArray &choices);
-    inline bool parseChoiceObject(ChatMessage *message, const QJsonObject &choice);
-    inline bool parseToolCalls(ChatMessage *message, const QJsonArray &toolCalls);
-    inline bool parseToolCall(const QJsonObject toolObject, ChatMessage::ToolEntry &tool) const;
     inline QJsonArray loadToolsConfig() const;
-    inline void checkAndRunTooling(ChatMessage *messge);
+    inline QJsonObject buildChatCompletionRequest(const QString &model, const QList<QJsonObject> &messages, const QJsonObject &parameters, bool stream);
 };
 
 #endif // LLMCHAT_CLIENT_H

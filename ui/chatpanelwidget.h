@@ -41,6 +41,8 @@ private:
     QTextEdit *m_messageInput;
     QPushButton *m_sendButton;
     AttachButton *m_attachButton;
+    // Model to hold chat messages
+    ChatModel *m_chatModel;
     // LLM connection data
     LLMConnection *m_llmConnection;
     // LLM connection client

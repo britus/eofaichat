@@ -6,7 +6,7 @@
 ChatListItemDelegate::ChatListItemDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
 {
-    //
+    // 
 }
 
 void ChatListItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
@@ -65,5 +65,10 @@ bool ChatListItemDelegate::editorEvent(QEvent *event, QAbstractItemModel *model,
             return true;
         }
     }
+    else if (event->type() == QEvent::MouseButtonDblClick) {
+        // Handle double-click - we don't want to do anything special here
+        // as the double-click is handled by the parent widget
+    }
+    
     return QStyledItemDelegate::editorEvent(event, model, option, index);
 }

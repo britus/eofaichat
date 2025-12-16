@@ -44,8 +44,9 @@
 
 ChatPanelWidget::ChatPanelWidget(LLMConnection *connection, SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent)
     : QWidget(parent)
+    , m_chatModel(new ChatModel(this))
     , m_llmConnection(connection)
-    , m_llmclient(new LLMChatClient(tModel, new ChatModel(this), this))
+    , m_llmclient(new LLMChatClient(tModel, this))
     , m_syntaxModel(scModel)
     , m_toolModel(tModel)
     , m_fileListModel(new FileListModel(this))
@@ -111,7 +112,7 @@ ChatPanelWidget::ChatPanelWidget(LLMConnection *connection, SyntaxColorModel *sc
     }
 }
 
-// ----------------- chat text area -----------------
+// ----------------- chat text area -----------------------------
 
 inline QWidget *ChatPanelWidget::createChatArea(QWidget *parent)
 {
@@ -400,8 +401,8 @@ inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
         });
         */
         // Chat history
-        for (int i = 0; i < m_llmclient->chatModel()->rowCount(); i++) {
-            ChatMessage *cm = m_llmclient->chatModel()->messageAt(i);
+        for (int i = 0; i < m_chatModel->rowCount(); i++) {
+            ChatMessage *cm = m_chatModel->messageAt(i);
             if (cm->isUser()) {
                 messages.append({
                     .role = cm->role(),
@@ -452,7 +453,7 @@ inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
         text.append("<|im_end|>\n");
 
         // load previous chat messages
-        QByteArray previusChat = m_llmclient->chatModel()->chatContent();
+        QByteArray previusChat = m_chatModel->chatContent();
         if (previusChat.length() > 0) {
             text.append(previusChat);
         }
@@ -471,14 +472,14 @@ inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
 #endif
 
         // Add sender bubble
-        ChatMessage cm(m_llmclient->chatModel());
+        ChatMessage cm(m_chatModel);
         cm.setContent(question);
         cm.setRole(ChatMessage::Role::ChatRole);
         cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         cm.setSystemFingerprint(cm.id());
         cm.setCreated(QDateTime::currentDateTime().time().msecsSinceStartOfDay());
         cm.setModel(m_llmclient->activeModel().id);
-        m_llmclient->chatModel()->addMessage(cm);
+        m_chatModel->addMessage(cm);
 
         // Clear input
         m_messageInput->clear();
@@ -500,7 +501,7 @@ inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
     return m_sendButton;
 }
 
-// ==================================================
+// ---------------- LLM Connection Management Events ----------------
 
 void ChatPanelWidget::onConnectionChanged(LLMConnection *connection)
 {
@@ -512,6 +513,8 @@ void ChatPanelWidget::onConnectionChanged(LLMConnection *connection)
         });
     }
 }
+
+// ---------------- Chat Message Events ----------------------------
 
 void ChatPanelWidget::onUpdateChatText(int index, ChatMessage *message)
 {
@@ -529,21 +532,24 @@ void ChatPanelWidget::onUpdateChatText(int index, ChatMessage *message)
 
 inline void ChatPanelWidget::connectChatModel()
 {
-    connect(m_llmclient->chatModel(), &ChatModel::messageAdded, this, [this](ChatMessage *message) { //
+    connect(m_chatModel, &ChatModel::messageAdded, this, [this](ChatMessage *message) { //
         onUpdateChatText(-1, message);
     });
-    connect(m_llmclient->chatModel(), &ChatModel::messageChanged, this, [this](int index, ChatMessage *message) { //
+    connect(m_chatModel, &ChatModel::messageChanged, this, [this](int index, ChatMessage *message) { //
         onUpdateChatText(index, message);
     });
-    connect(m_llmclient->chatModel(), &ChatModel::messageRemoved, this, [](int) { //
+    connect(m_chatModel, &ChatModel::messageRemoved, this, [](int) { //
         //
     });
+    // Get notified about message parser events
+    connect(m_chatModel, &ChatModel::streamCompleted, this, &ChatPanelWidget::onHideProgressPopup, Qt::QueuedConnection);
+    connect(m_chatModel, &ChatModel::toolRequest, this, &ChatPanelWidget::onToolRequest, Qt::QueuedConnection);
 }
 
 inline void ChatPanelWidget::reportLLMError(QNetworkReply::NetworkError error, const QString &message)
 {
     qCritical().noquote() << "[ChatPanelWidget]" << message << error;
-    ChatMessage cm(m_llmclient->chatModel());
+    ChatMessage cm(m_chatModel);
     cm.setRole(ChatMessage::Role::AssistantRole);
     cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
     cm.setSystemFingerprint(cm.id());
@@ -551,7 +557,7 @@ inline void ChatPanelWidget::reportLLMError(QNetworkReply::NetworkError error, c
     cm.setModel(m_llmclient->activeModel().id);
     cm.setContent(QStringLiteral("Error: %1\n%2").arg(error).arg(message));
 
-    m_llmclient->chatModel()->addMessage(cm);
+    m_chatModel->addMessage(cm);
     m_llmclient->cancelRequest();
 
     QTimer::singleShot(10, this, [this]() { //
@@ -561,17 +567,18 @@ inline void ChatPanelWidget::reportLLMError(QNetworkReply::NetworkError error, c
 
 inline void ChatPanelWidget::connectLLMClient()
 {
-    connect(m_llmclient, &LLMChatClient::toolRequest, this, &ChatPanelWidget::onToolRequest, Qt::QueuedConnection);
-    connect(m_llmclient, &LLMChatClient::streamCompleted, this, &ChatPanelWidget::onHideProgressPopup, Qt::QueuedConnection);
     connect(m_llmclient, &LLMChatClient::networkError, this, [this](QNetworkReply::NetworkError error, const QString &message) { //
         reportLLMError(error, message);
     });
     connect(m_llmclient, &LLMChatClient::errorOccurred, this, [this](const QString &message) { //
         reportLLMError(QNetworkReply::NetworkError::OperationCanceledError, message);
     });
+    // Link incomming data from LLM to chat model
+    connect(m_llmclient, &LLMChatClient::parseDataStream, m_chatModel, &ChatModel::onParseDataStream);
+    connect(m_llmclient, &LLMChatClient::parseDataObject, m_chatModel, &ChatModel::onParseMessageObject);
 }
 
-// ---------------- Progress Popup Methods ----------------
+// ---------------- Progress Popup Methods ----------------------
 
 void ChatPanelWidget::onShowProgressPopup()
 {
@@ -602,7 +609,7 @@ void ChatPanelWidget::onHideProgressPopup()
     m_isConversating = false;
 }
 
-// ---------------- Drag and Drop Events ----------------
+// ---------------- Drag and Drop Events --------------------------
 
 void ChatPanelWidget::dragEnterEvent(QDragEnterEvent *event)
 {
@@ -692,7 +699,7 @@ void ChatPanelWidget::keyPressEvent(QKeyEvent *event)
     QWidget::keyPressEvent(event);
 }
 
-// ---------------- Chat Tooling Events ----------------
+// ---------------- Chat Tooling Events ----------------------------
 
 void ChatPanelWidget::onToolRequest(ChatMessage *message, const ChatMessage::ToolEntry &toolCall)
 {
@@ -798,7 +805,7 @@ finish:
         errmsg = "\n" + buffer + "\n";
     }
 
-    ChatMessage cm(m_llmclient->chatModel());
+    ChatMessage cm(m_chatModel);
     cm.setRole(ChatMessage::Role::ToolingRole);
     cm.setId(QStringLiteral("CPW-%1").arg(message->id()));
     cm.setSystemFingerprint(cm.id());
@@ -819,7 +826,7 @@ finish:
                                toolCall.functionName()));
     }
 
-    m_llmclient->chatModel()->addMessage(cm);
+    m_chatModel->addMessage(cm);
 
     // Send message to LLM
     LLMChatClient::SendParameters params = {

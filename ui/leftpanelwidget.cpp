@@ -49,12 +49,15 @@ LeftPanelWidget::LeftPanelWidget(QWidget *parent)
 
     m_chatList = new QListView(this);
     m_chatList->setSelectionMode(QAbstractItemView::SingleSelection);
-    ChatListItemDelegate *delegate = new ChatListItemDelegate(this);
-    m_chatList->setItemDelegate(delegate);
     m_chatList->setModel(m_chatListModel);
+    m_chatList->setEditTriggers(QListView::NoEditTriggers);
 
     connect(m_chatList, &QListView::clicked, this, &LeftPanelWidget::onChatItemClicked);
+    connect(m_chatList, &QListView::doubleClicked, this, &LeftPanelWidget::onChatItemDoubleClicked);
+
+    ChatListItemDelegate *delegate = new ChatListItemDelegate(this);
     connect(delegate, &ChatListItemDelegate::deleteRequested, this, &LeftPanelWidget::onDeleteChatRequested);
+    m_chatList->setItemDelegate(delegate);
 
     // Enable context menu
     m_chatList->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -117,6 +120,15 @@ void LeftPanelWidget::onChatItemClicked(const QModelIndex &index)
     if (chatData) {
         emit chatSelected(chatData->widget);
     }
+}
+
+void LeftPanelWidget::onChatItemDoubleClicked(const QModelIndex &index)
+{
+    if (!index.isValid())
+        return;
+
+    // Call the edit chat function when double clicked
+    onEditChat();
 }
 
 void LeftPanelWidget::onEditChat()

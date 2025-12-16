@@ -43,13 +43,30 @@ public:
     bool saveToFile(const QString &fileName) const;
     bool loadFromFile(const QString &fileName);
 
+public slots:
+    void onParseMessageObject(const QJsonObject &response);
+    void onParseDataStream(const QByteArray &data);
+
 signals:
+    void streamCompleted();
+    void errorOccurred(const QString &error);
+    void toolRequest(ChatMessage *message, const ChatMessage::ToolEntry &tool);
     void messageAdded(ChatMessage *message);
     void messageRemoved(int index);
     void messageChanged(int index, ChatMessage *message);
 
 private:
     QList<ChatMessage *> m_messages;
+
+private:
+    inline void reportError(const QString &message);
+    inline bool validateValue(const QJsonValue &value, const QString &key, const QJsonValue::Type expectedType);
+    inline bool valueOf(const QJsonObject &response, const QString &key, const QJsonValue::Type expectedType, QJsonValue &value);
+    inline bool parseChoices(ChatMessage *message, const QJsonArray &choices);
+    inline bool parseChoiceObject(ChatMessage *message, const QJsonObject &choice);
+    inline bool parseToolCalls(ChatMessage *message, const QJsonArray &toolCalls);
+    inline bool parseToolCall(const QJsonObject toolObject, ChatMessage::ToolEntry &tool) const;
+    inline void checkAndRunTooling(ChatMessage *messge);
 };
 
 #endif // CHATMODEL_H
