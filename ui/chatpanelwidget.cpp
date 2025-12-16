@@ -384,22 +384,12 @@ inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
         // check in conversation
         if (m_isConversating) {
             m_llmclient->cancelRequest();
+            onHideProgressPopup();
             return;
         }
 
         QList<LLMChatClient::SendParameters> messages;
-#if 1
-        /*
-        QByteArray question = m_messageInput->toPlainText().trimmed().toUtf8();
-        if (question.isEmpty())
-            return;
 
-        // New question
-        messages.append({
-            .role = ChatMessage::Role::UserRole,
-            .message = question,
-        });
-        */
         // Chat history
         for (int i = 0; i < m_chatModel->rowCount(); i++) {
             ChatMessage *cm = m_chatModel->messageAt(i);
@@ -441,36 +431,6 @@ inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
             .content = text.join("\n"),
         });
 
-#else
-        QByteArray question = m_messageInput->toPlainText().trimmed().toUtf8();
-        if (question.isEmpty())
-            return;
-
-        // app new conversation
-        QByteArray text;
-        text.append("<|im_start|>user\n");
-        text.append(question);
-        text.append("<|im_end|>\n");
-
-        // load previous chat messages
-        QByteArray previusChat = m_chatModel->chatContent();
-        if (previusChat.length() > 0) {
-            text.append(previusChat);
-        }
-
-        // load file attachments
-        if (m_fileListModel->rowCount() > 0) {
-            QByteArray content;
-            text.append("#Attached files:\n");
-            m_fileListModel->loadContentOfFiles(content);
-            if (!content.isEmpty()) {
-                text.append("<|im_start|>user\n");
-                text = text.append(content);
-                text.append("<|im_end|>\n");
-            }
-        }
-#endif
-
         // Add sender bubble
         ChatMessage cm(m_chatModel);
         cm.setContent(question);
@@ -493,12 +453,47 @@ inline QPushButton *ChatPanelWidget::createSendButton(QWidget *parent)
 
         m_isConversating = true;
 
-        // Send JSON for network layer
-        //m_llmclient->sendChat(cm.model(), text, true);
+        // Send JSON to LLM server
         m_llmclient->sendChat(messages, true);
     });
 
     return m_sendButton;
+}
+
+// ---------------- Key Press Event ----------------
+
+void ChatPanelWidget::keyPressEvent(QKeyEvent *event)
+{
+    // Check if Ctrl+Enter or Cmd+Enter is pressed (depending on platform)
+    bool isCtrlPressed = event->modifiers().testFlag(Qt::ControlModifier);
+    bool isCmdPressed = event->modifiers().testFlag(Qt::MetaModifier); // For macOS
+    bool isShiftPressed = event->modifiers().testFlag(Qt::ShiftModifier);
+
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+        // If Shift is pressed, create a new line
+        if (isShiftPressed) {
+            // Allow the default behavior (new line)
+            QWidget::keyPressEvent(event);
+            return;
+        }
+
+        // If Ctrl+Enter or Cmd+Enter is pressed, create a new line
+        if (isCtrlPressed || isCmdPressed) {
+            // Allow the default behavior (new line)
+            QWidget::keyPressEvent(event);
+            return;
+        }
+
+        // If Enter is pressed without modifiers, send the message
+        // Call the send button's click handler directly
+        if (m_sendButton) {
+            m_sendButton->click();
+        }
+        return;
+    }
+
+    // For all other key events, call the parent implementation
+    QWidget::keyPressEvent(event);
 }
 
 // ---------------- LLM Connection Management Events ----------------
@@ -549,6 +544,7 @@ inline void ChatPanelWidget::connectChatModel()
 inline void ChatPanelWidget::reportLLMError(QNetworkReply::NetworkError error, const QString &message)
 {
     qCritical().noquote() << "[ChatPanelWidget]" << message << error;
+
     ChatMessage cm(m_chatModel);
     cm.setRole(ChatMessage::Role::AssistantRole);
     cm.setId(QStringLiteral("CPW-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
@@ -661,42 +657,6 @@ void ChatPanelWidget::dropEvent(QDropEvent *event)
         }
         event->acceptProposedAction();
     }
-}
-
-// ---------------- Key Press Event ----------------
-
-void ChatPanelWidget::keyPressEvent(QKeyEvent *event)
-{
-    // Check if Ctrl+Enter or Cmd+Enter is pressed (depending on platform)
-    bool isCtrlPressed = event->modifiers().testFlag(Qt::ControlModifier);
-    bool isCmdPressed = event->modifiers().testFlag(Qt::MetaModifier); // For macOS
-    bool isShiftPressed = event->modifiers().testFlag(Qt::ShiftModifier);
-
-    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
-        // If Shift is pressed, create a new line
-        if (isShiftPressed) {
-            // Allow the default behavior (new line)
-            QWidget::keyPressEvent(event);
-            return;
-        }
-
-        // If Ctrl+Enter or Cmd+Enter is pressed, create a new line
-        if (isCtrlPressed || isCmdPressed) {
-            // Allow the default behavior (new line)
-            QWidget::keyPressEvent(event);
-            return;
-        }
-
-        // If Enter is pressed without modifiers, send the message
-        // Call the send button's click handler directly
-        if (m_sendButton) {
-            m_sendButton->click();
-        }
-        return;
-    }
-
-    // For all other key events, call the parent implementation
-    QWidget::keyPressEvent(event);
 }
 
 // ---------------- Chat Tooling Events ----------------------------
