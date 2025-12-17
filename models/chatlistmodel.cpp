@@ -106,7 +106,7 @@ void ChatListModel::renameChat(int row, const QString &newName)
     emit dataChanged(index(row, 0), index(row, 0), {Qt::DisplayRole});
 }
 
-ChatListModel::ChatData *ChatListModel::getChatData(int row) const
+ChatListModel::ChatData *ChatListModel::chatData(int row) const
 {
     if (row < 0 || row >= m_chats.size())
         return nullptr;
@@ -116,4 +116,20 @@ ChatListModel::ChatData *ChatListModel::getChatData(int row) const
 int ChatListModel::chatCount() const
 {
     return m_chats.size();
+}
+
+// New method to get ChatModel from a ChatPanelWidget
+ChatModel *ChatListModel::chatModel(int row) const
+{
+    if (row < 0 || row >= m_chats.size())
+        return nullptr;
+    // Access the ChatPanelWidget and get its ChatModel
+    ChatPanelWidget *panelWidget = m_chats[row].widget;
+    if (panelWidget) {
+        // Assuming ChatPanelWidget has a method to get its ChatModel
+        // This is a bit of a hack, but it's the only way to get the model from the widget
+        // We'll use a direct cast, which is safe as long as we know the type.
+        return panelWidget->chatModel();
+    }
+    return nullptr;
 }

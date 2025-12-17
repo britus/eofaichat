@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
     QApplication::setApplicationName(QStringLiteral("eofaichat"));
     QApplication::setApplicationDisplayName(QStringLiteral("EoF Smart AI Chat"));
     QApplication::setApplicationVersion(QStringLiteral("%1.%2").arg(getBundleVersion(), getBuildNumber()));
+    QApplication::setAttribute(Qt::AA_DontUseNativeMenuBar, false); // prefer OS menu bar
 
     QApplication a(argc, argv);
     a.setPalette(darkPalette);

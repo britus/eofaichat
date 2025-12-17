@@ -352,7 +352,6 @@ void LLMChatClient::onLLMResponse(QNetworkReply *reply)
     QByteArray data;
 
     if (reply->error() != QNetworkReply::NoError) {
-        emit networkError(reply->error(), reply->errorString());
         goto finish;
     }
 
@@ -381,8 +380,8 @@ void LLMChatClient::onLLMResponse(QNetworkReply *reply)
 
     // Handle available models response
     if (reply->url().path().contains("/models")) {
-        llmModels()->loadFrom(response["data"].toArray());
-        qDebug("[LLMChatClient] onLLMResponse: %d LLM models available.", llmModels()->rowCount());
+        modelList()->loadFrom(response["data"].toArray());
+        qDebug("[LLMChatClient] onLLMResponse: %d LLM models available.", modelList()->rowCount());
     }
     // Handle regular LLM message
     else {

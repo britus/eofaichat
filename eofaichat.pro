@@ -4,7 +4,6 @@ QT  += widgets
 QT  += concurrent
 QT  += core5compat
 QT  += network
-QT  += dbus
 QT  += opengl
 QT  += svg
 QT  += quick

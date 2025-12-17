@@ -20,6 +20,7 @@ class ChatPanelWidget : public QWidget
 
 public:
     explicit ChatPanelWidget(LLMConnection *connection, SyntaxColorModel *scModel, ToolModel *tModel, QWidget *parent = nullptr);
+    inline ChatModel *chatModel() { return m_chatModel; }
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -28,6 +29,9 @@ protected:
 
 public slots:
     void onConnectionChanged(LLMConnection *connection);
+
+signals:
+    void chatTextUpdated();
 
 private slots:
     void onUpdateChatText(int index, ChatMessage *message);
@@ -44,9 +48,9 @@ private:
     // Model to hold chat messages
     ChatModel *m_chatModel;
     // LLM connection data
-    LLMConnection *m_llmConnection;
+    LLMConnection *m_activeConnection;
     // LLM connection client
-    LLMChatClient *m_llmclient;
+    LLMChatClient *m_llmClient;
     // Syntax color model used by all ChatTextWidget instances
     SyntaxColorModel *m_syntaxModel;
     // LLM Tooling

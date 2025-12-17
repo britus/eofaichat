@@ -49,8 +49,10 @@ public:
     void listModels();
 
     inline ToolModel *toolModel() { return m_toolModel; }
-    inline ModelListModel *llmModels() { return m_llmModels; }
+    inline ModelListModel *modelList() const { return m_llmModels; }
     inline const ModelListModel::ModelEntry &activeModel() const { return m_llmModel; }
+    inline bool hasLLModels() const { return m_llmModels && m_llmModels->rowCount() > 0; }
+    inline bool modelCount() const { return (m_llmModels ? m_llmModels->rowCount() : 0); }
 
 public slots:
     void setActiveModel(const ModelListModel::ModelEntry &model);
@@ -74,12 +76,18 @@ private slots:
     void onSslErrors(QNetworkReply *reply, const QList<QSslError> &errors);
 
 private:
-    ModelListModel::ModelEntry m_llmModel;
-    ToolModel *m_toolModel;
-    ModelListModel *m_llmModels;
     QNetworkAccessManager *m_networkManager;
+    // tool support
+    ToolModel *m_toolModel;
+    // all available LL models
+    ModelListModel *m_llmModels;
+    // selected (avtive) model
+    ModelListModel::ModelEntry m_llmModel;
+    // avtivated LLM server connection to use
     LLMConnection *m_connection;
+    // configured time out
     int m_timeout;
+    // True if server response is a stream
     bool m_isResponseStream;
 
 private:

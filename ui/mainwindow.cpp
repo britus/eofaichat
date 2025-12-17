@@ -24,10 +24,16 @@ MainWindow::MainWindow(QWidget *parent)
     , m_syntaxModel(new SyntaxColorModel(this))
     , m_toolModel(new ToolModel(this))
 {
+    setAttribute(Qt::WA_MacOpaqueSizeGrip, true);
+    setWindowFlag(Qt::WindowType::Window, true);
     setWindowTitle(qApp->applicationDisplayName());
     setWindowIcon(QIcon(":/assets/eofaichat.png"));
-    setWindowFlag(Qt::WindowType::Window, true);
-    setMinimumSize(QSize(720, 680));
+    setMinimumSize(QSize(720, 660));
+
+    // For macOS, you might want to hide the default menu bar
+    // and use a custom one
+    if (QSysInfo::productType() == "macos") {
+    }
 
     m_centralWidget = new QWidget(this);
     setCentralWidget(m_centralWidget);
@@ -86,7 +92,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Create initial chat
     QTimer::singleShot(500, this, [leftPanel]() { //
-        leftPanel->onNewChat();
+        leftPanel->onNewChatClicked();
     });
 }
 
@@ -112,6 +118,8 @@ extern int loadStyleSheet(QApplication *app, const QString &name);
 void MainWindow::setupMenuBar()
 {
     QMenuBar *menuBar = this->menuBar();
+
+    setUnifiedTitleAndToolBarOnMac(true);
 
     // Tools menu
     m_toolsMenu = menuBar->addMenu(tr("&Tools"));

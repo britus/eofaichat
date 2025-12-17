@@ -30,17 +30,17 @@ private:
     ChatMessage *m_message;
 };
 
-#if defined(QT_DEBUG)
 static inline void saveDocument(QTextDocument *document)
 {
+#if defined(QT_DEBUG)
     QDir home(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
     QFile file(home.absoluteFilePath("_html_output.html"));
     if (file.open(QFile::WriteOnly | QFile::Truncate)) {
         file.write(document->toHtml().toUtf8());
         file.close();
     }
-}
 #endif
+}
 
 ChatTextWidget::ChatTextWidget(QWidget *parent, SyntaxColorModel *model)
     : QTextEdit(parent)
@@ -104,46 +104,67 @@ void ChatTextWidget::removeMessage(ChatMessage *message)
     Q_UNUSED(message)
 }
 
+#if 0
 void ChatTextWidget::updateMessage(ChatMessage *message)
 {
     if (!message || message->content().isEmpty()) {
         return;
     }
-    if (m_messages.contains(message->id())) {
-        return;
-    }
 
-    appendMarkdown(message);
+    QTextDocument *doc = document();
+    QTextBlock block = doc->begin();
+
+    while (block.isValid()) {
+        BlockData *data = static_cast<BlockData *>(block.userData());
+        if (data && data->message() == message) {
+            QTextCursor cursor(block);
+
+            // Select and replace the entire block content with message content
+            cursor.select(QTextCursor::BlockUnderCursor);
+            cursor.beginEditBlock();
+            cursor.removeSelectedText();
+            cursor.insertText(message->content());
+            cursor.endEditBlock();
+
+            // Re-attach the BlockData to preserve the message reference
+            block.setUserData(new BlockData(message));
+
+            emit documentUpdated();
+            return;
+        }
+        block = block.next();
+    }
 
     // Emit signal when document is complete
     if (message->finishReason() == "stop") {
         emit documentUpdated();
     }
-
-#if defined(QT_DEBUG)
-    saveDocument(document());
-#endif
 }
+#endif
 
 void ChatTextWidget::appendMessage(ChatMessage *message)
 {
     if (!message || message->content().isEmpty()) {
         return;
     }
-    if (m_messages.contains(message->id())) {
-        return;
-    }
 
-    appendMarkdown(message);
+    qDebug().noquote() << "[ChatTextWidget] adding:" //
+                       << message->id() << "msg:" << message->content();
 
-    // Emit signal when document is complete
-    if (message->finishReason() == "stop") {
+    // user question and tool information
+    if (message->role() == ChatMessage::ChatRole    //
+        || message->role() == ChatMessage::UserRole //
+        || message->role() == ChatMessage::ToolingRole) {
+        appendMarkdown(message);
+        saveDocument(document());
         emit documentUpdated();
     }
-
-#if defined(QT_DEBUG)
-    saveDocument(document());
-#endif
+    // Add message to document if message stream has completed
+    else if (message->finishReason() == "stop") {
+        appendMarkdown(message);
+        saveDocument(document());
+        emit documentUpdated();
+    }
 }
 
 QVector<Token> ChatTextWidget::tokenizeCode(const QString &code, const QString &language)
@@ -223,13 +244,7 @@ inline void ChatTextWidget::appendSeparator(QTextCursor *cursor)
     cursor->insertBlock(blockFmt);
 
     cursor->beginEditBlock();
-    cursor->insertHtml(R"(<hr style=\""
-                       "border: 0;"
-                       "border-top: 1px solid blue;"
-                       "height: 0;"
-                       "margin: 0;"
-                       "padding: 0;"
-                       "width: 100%;\">)");
+    cursor->insertHtml(R"(<hr style=\"border: 0; border-top: 1px solid blue; height: 0; margin: 0; padding: 0; width: 100%;\">)");
     cursor->endEditBlock();
 }
 
@@ -330,11 +345,14 @@ void ChatTextWidget::appendMarkdown(ChatMessage *message)
     QTextCursor cursor = textCursor();
     cursor.setVisualNavigation(true);
 
-    if (!document()->isEmpty()) {
+    if (!document()->isEmpty() && message->role() == ChatMessage::ChatRole) {
         appendSeparator(&cursor);
     }
 
     QString markdown = message->content();
+    if (markdown.contains("\n\n")) {
+        markdown = markdown.replace("\n\n", "\n");
+    }
     if (message->role() == ChatMessage::SystemRole) {
         markdown = "```system\n" + markdown + "\n```";
     } else if (message->role() == ChatMessage::ToolingRole) {
@@ -400,9 +418,6 @@ void ChatTextWidget::appendMarkdown(ChatMessage *message)
         appendNormalText(&cursor, message, normalBuffer);
         normalBuffer.clear();
     }
-
-    // prevent duplicate messages
-    m_messages.append(message->id());
 
     // move to end
     verticalScrollBar()->setValue(verticalScrollBar()->maximum());

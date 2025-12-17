@@ -74,7 +74,7 @@ bool ChatModel::setData(const QModelIndex &index, const QVariant &value, int rol
     }
 
     emit dataChanged(index, index, {role});
-    emit messageChanged(index.row(), message);
+    emit messageChanged(message, index.row());
     return true;
 }
 
@@ -110,7 +110,7 @@ void ChatModel::clear()
     endResetModel();
 }
 
-ChatMessage *ChatModel::addMessage(const ChatMessage &message)
+ChatMessage *ChatModel::appendMessage(const ChatMessage &message)
 {
     ChatMessage *cm = new ChatMessage(message);
 
@@ -122,7 +122,7 @@ ChatMessage *ChatModel::addMessage(const ChatMessage &message)
     return cm;
 }
 
-ChatMessage *ChatModel::addMessage(ChatMessage *message)
+ChatMessage *ChatModel::appendMessage(ChatMessage *message)
 {
     beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
     m_messages.append(message);
@@ -226,7 +226,7 @@ bool ChatModel::loadFromFile(const QString &fileName)
             message->fromJson(messageObj);
 
             // Add to model
-            addMessage(message);
+            messageAdded(message);
         }
     }
 
@@ -337,8 +337,10 @@ void ChatModel::onParseMessageObject(const QJsonObject &response)
         goto error_exit;
     }
 
-    if (isNew) {
-        addMessage(message);
+    if (!isNew) {
+        emit messageChanged(message, m_messages.indexOf(message));
+    } else {
+        appendMessage(message);
     }
 
     // run tooling (tool_calls)
@@ -518,6 +520,7 @@ inline bool ChatModel::parseChoiceObject(ChatMessage *message, const QJsonObject
     if (messageObj.contains("content")) {
         value = messageObj["content"];
         if (!value.isNull() && value.isString()) {
+            //message->setContent(value.toString());
             message->appendContent(value.toString());
         }
     }

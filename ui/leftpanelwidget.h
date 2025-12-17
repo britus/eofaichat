@@ -31,13 +31,15 @@ signals:
     void connectionSelected(LLMConnection *connection);
 
 public slots:
-    void onNewChat();
+    void onNewChatClicked();
+    // Add a slot for saving chat history
+    void onSaveChatHistory();
 
 private slots:
     void onChatItemClicked(const QModelIndex &index);
     void onChatItemDoubleClicked(const QModelIndex &index);
-    void onEditChat();
-    void onDeleteChat();
+    void onEditChatClicked();
+    void onDeleteChatClicked();
     void onConfirmDelete();
     void onCancelDelete();
     void onSelectConnection();
@@ -51,7 +53,7 @@ protected:
 private:
     ChatListModel *m_chatListModel;
     LLMConnectionModel *m_llmModel;
-    QListView *m_chatList; // Changed from QListWidget to QListView
+    QListView *m_chatListView; // Changed from QListWidget to QListView
     QPushButton *m_newChatButton;
     QPushButton *m_updatesButton;
     //QPushButton *m_downloadsButton;

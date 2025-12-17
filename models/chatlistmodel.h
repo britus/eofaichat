@@ -12,6 +12,7 @@
 #include <QWidget>
 
 class ChatPanelWidget;
+class ChatModel;
 class ChatListModel : public QAbstractItemModel
 {
     Q_OBJECT
@@ -43,8 +44,12 @@ public:
     void addChat(const QString &name, ChatPanelWidget *widget);
     void removeChat(int row);
     void renameChat(int row, const QString &newName);
-    ChatData *getChatData(int row) const;
     int chatCount() const;
+
+    ChatData *chatData(int row) const;
+
+    // New method to get ChatModel from a ChatPanelWidget
+    ChatModel *chatModel(int row) const;
 
 signals:
     void chatWidgetRemoved(QWidget *widget);

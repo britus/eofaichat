@@ -15,7 +15,6 @@ public:
     void setSyntaxColorModel(SyntaxColorModel *model);
     // LLM messages
     void appendMessage(ChatMessage *message);
-    void updateMessage(ChatMessage *message);
     void removeMessage(ChatMessage *message);
 
 signals:
@@ -41,5 +40,4 @@ private:
 
 private:
     SyntaxColorModel *m_colorModel;
-    QStringList m_messages;
 };

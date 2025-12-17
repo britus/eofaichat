@@ -31,8 +31,8 @@ public:
 
     // Custom methods
     void clear();
-    ChatMessage *addMessage(const ChatMessage &message);
-    ChatMessage *addMessage(ChatMessage *message);
+    ChatMessage *appendMessage(const ChatMessage &message);
+    ChatMessage *appendMessage(ChatMessage *message);
     void removeMessage(int index);
 
     ChatMessage *messageAt(int index) const;
@@ -51,8 +51,8 @@ signals:
     void errorOccurred(const QString &error);
     void toolRequest(ChatMessage *message, const ToolCallEntry &tool);
     void messageAdded(ChatMessage *message);
+    void messageChanged(ChatMessage *message, int index = -1);
     void messageRemoved(int index);
-    void messageChanged(int index, ChatMessage *message);
 
 private:
     QList<ChatMessage *> m_messages;
